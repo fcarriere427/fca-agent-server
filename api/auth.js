@@ -145,14 +145,16 @@ router.post('/login', (req, res) => {
         db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
         
         logger.info(`Utilisateur connecté: ${username} (id: ${user.id})`);
-        res.status(200).json({ 
+        const responseData = { 
           success: true,
           token,
           user: {
             id: user.id,
             username: user.username
           }
-        });
+        };
+        logger.info(`Données de réponse: ${JSON.stringify(responseData)}`);
+        res.status(200).json(responseData);
       } catch (error) {
         logger.error('Erreur lors de la vérification du mot de passe:', error);
         res.status(500).json({ error: 'Erreur serveur' });

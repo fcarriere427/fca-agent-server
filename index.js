@@ -71,6 +71,73 @@ app.get('/api/test', (req, res) => {
   res.status(200).json({ message: 'FCA-Agent API fonctionne correctement!' });
 });
 
+// Route de test pour l'authentification
+app.post('/api/test-auth', (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Nom d\'utilisateur et mot de passe requis' });
+  }
+  
+  logger.info(`Test d'authentification pour: ${username}`);
+  
+  const db = getDb();
+  db.get('SELECT id, username, password_hash FROM users WHERE username = ?', [username], async (err, user) => {
+    if (err) {
+      logger.error('Erreur lors de la recherche de l\'utilisateur:', err);
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Utilisateur non trouvé' });
+    }
+    
+    try {
+      // Vérification du mot de passe
+      const bcrypt = require('bcrypt');
+      const match = await bcrypt.compare(password, user.password_hash);
+      
+      if (!match) {
+        return res.status(401).json({ error: 'Mot de passe incorrect' });
+      }
+      
+      // Création du token JWT
+      const jwt = require('jsonwebtoken');
+      const jwtSecret = process.env.JWT_SECRET || 'default_secret_key_for_dev';
+      logger.info(`Secret JWT utilisé: ${jwtSecret.substring(0, 3)}...${jwtSecret.substring(jwtSecret.length - 3)}`);
+      
+      const token = jwt.sign(
+        { id: user.id, username: user.username },
+        jwtSecret,
+        { expiresIn: process.env.JWT_EXPIRATION || '1d' }
+      );
+      
+      // Test de vérification
+      jwt.verify(token, jwtSecret, (err, decoded) => {
+        if (err) {
+          logger.error(`ERREUR: Impossible de vérifier le token qui vient d'être généré: ${err.message}`);
+          return res.status(500).json({ error: 'Erreur de génération du token' });
+        }
+        
+        logger.info(`Test de vérification du token réussi, décodage: ${JSON.stringify(decoded)}`);
+        
+        return res.status(200).json({ 
+          success: true,
+          message: 'Authentification réussie',
+          token,
+          user: {
+            id: user.id,
+            username: user.username
+          }
+        });
+      });
+    } catch (error) {
+      logger.error('Erreur dans test-auth:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+});
+
 // Gestion des erreurs
 app.use((err, req, res, next) => {
   logger.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
