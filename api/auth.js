@@ -130,7 +130,7 @@ router.get('/profile', authMiddleware, (req, res) => {
   try {
     const db = getDb();
     
-    db.get('SELECT id, username, email, created_at, last_login FROM users WHERE id = ?', [req.user.id], (err, user) => {
+    db.get('SELECT id, username, email, created_at, last_login, last_activity FROM users WHERE id = ?', [req.user.id], (err, user) => {
       if (err) {
         logger.error('Erreur lors de la récupération du profil:', err);
         return res.status(500).json({ error: 'Erreur serveur' });
@@ -140,10 +140,80 @@ router.get('/profile', authMiddleware, (req, res) => {
         return res.status(404).json({ error: 'Utilisateur non trouvé' });
       }
       
-      res.status(200).json({ user });
+      // Compter le nombre total de tâches
+      db.get('SELECT COUNT(*) as taskCount FROM tasks WHERE user_id = ?', [req.user.id], (err, taskStats) => {
+        if (err) {
+          logger.error('Erreur lors du comptage des tâches:', err);
+          return res.status(200).json({ user }); // On continue malgré l'erreur
+        }
+        
+        // Renvoyer le profil avec les statistiques
+        res.status(200).json({
+          user,
+          stats: {
+            taskCount: taskStats ? taskStats.taskCount : 0
+          }
+        });
+      });
     });
   } catch (error) {
     logger.error('Erreur lors de la récupération du profil:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/auth/change-password - Changer le mot de passe
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis' });
+    }
+    
+    const db = getDb();
+    
+    // Vérifier le mot de passe actuel
+    db.get('SELECT password_hash FROM users WHERE id = ?', [req.user.id], async (err, user) => {
+      if (err) {
+        logger.error('Erreur lors de la vérification du mot de passe:', err);
+        return res.status(500).json({ error: 'Erreur serveur' });
+      }
+      
+      if (!user) {
+        return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      }
+      
+      try {
+        // Vérifier si le mot de passe actuel est correct
+        const match = await bcrypt.compare(currentPassword, user.password_hash);
+        
+        if (!match) {
+          return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+        }
+        
+        // Hacher le nouveau mot de passe
+        const saltRounds = 10;
+        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+        
+        // Mettre à jour le mot de passe
+        db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newPasswordHash, req.user.id], function(err) {
+          if (err) {
+            logger.error('Erreur lors de la mise à jour du mot de passe:', err);
+            return res.status(500).json({ error: 'Erreur serveur' });
+          }
+          
+          logger.info(`Mot de passe changé pour l'utilisateur ${req.user.username} (id: ${req.user.id})`);
+          res.status(200).json({ success: true, message: 'Mot de passe mis à jour avec succès' });
+        });
+      } catch (error) {
+        logger.error('Erreur lors du changement de mot de passe:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur lors du changement de mot de passe:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

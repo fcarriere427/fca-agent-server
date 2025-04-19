@@ -31,7 +31,8 @@ function setupDatabase() {
           password_hash TEXT NOT NULL,
           email TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_login TEXT
+          last_login TEXT,
+          last_activity TEXT
         )`, (err) => {
           if (err) {
             logger.error('Erreur lors de la création de la table users:', err);
