@@ -18,7 +18,7 @@ const authMiddleware = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     
     // Vérifier le token
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key_for_dev', (err, decoded) => {
       if (err) {
         return res.status(401).json({ error: 'Non autorisé: token invalide' });
       }
@@ -124,7 +124,7 @@ router.post('/login', (req, res) => {
         // Création du token JWT
         const token = jwt.sign(
           { id: user.id, username: user.username },
-          process.env.JWT_SECRET,
+          process.env.JWT_SECRET || 'default_secret_key_for_dev',
           { expiresIn: process.env.JWT_EXPIRATION || '1d' }
         );
         
@@ -174,8 +174,7 @@ router.get('/profile', authMiddleware, (req, res) => {
   }
 });
 
-// Exporter uniquement le routeur
+// Export direct du middleware pour pouvoir l'utiliser sans passer par un objet
+module.exports.authMiddleware = authMiddleware;
+// Export du routeur comme objet par défaut
 module.exports = router;
-
-// Exporter le middleware d'authentification séparément
-exports.authMiddleware = authMiddleware;
