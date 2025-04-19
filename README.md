@@ -9,6 +9,7 @@ Ce serveur Node.js s'exécute sur un Raspberry Pi et sert d'intermédiaire entre
 - `services/` - Services métier
 - `db/` - Configuration et accès à la base de données
 - `config/` - Fichiers de configuration
+- `middleware/` - Middlewares Express (authentification, etc.)
 
 ## Installation
 
@@ -42,6 +43,10 @@ npm run dev
 - `POST /api/tasks` - Exécuter une tâche
 - `GET /api/tasks` - Lister les tâches
 - `GET /api/tasks/:id` - Obtenir les détails d'une tâche
+
+## Configuration
+
+Le serveur écoute par défaut sur le port 3001. Vous pouvez modifier ce port en définissant la variable d'environnement `PORT` dans le fichier `.env`.
 
 ## Logs
 

@@ -20,7 +20,7 @@ const statusRoutes = require('./api/status');
 
 // Initialisation
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Création du répertoire logs s'il n'existe pas
 const logsDir = path.join(__dirname, 'logs');
