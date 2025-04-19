@@ -14,9 +14,9 @@ const { logger } = require('./config/logger');
 
 // Routes
 const statusRoutes = require('./api/status');
-// Désactivation temporaire des routes d'authentification et de tâches
+// Désactivation temporaire de la route de tâches
 // const tasksRoutes = require('./api/tasks');
-// const authRoutes = require('./api/auth');
+const authRoutes = require('./api/auth');
 
 // Initialisation
 const app = express();
@@ -41,9 +41,9 @@ app.use(morgan('dev', { stream: { write: message => logger.info(message.trim()) 
 
 // Routes API
 app.use('/api/status', statusRoutes);
-// Désactivation temporaire des routes d'authentification et de tâches
+// Désactivation temporaire de la route de tâches
 // app.use('/api/tasks', tasksRoutes);
-// app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 // Route pour la santé du serveur
 app.get('/health', (req, res) => {
