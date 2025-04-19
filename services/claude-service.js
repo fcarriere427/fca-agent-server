@@ -1,5 +1,5 @@
 // FCA-Agent - Service d'interaction avec l'API Claude d'Anthropic
-const { Anthropic } = require('anthropic');
+const Anthropic = require('@anthropic-ai/sdk');
 const { logger } = require('../config/logger');
 
 // Initialisation du client Anthropic
