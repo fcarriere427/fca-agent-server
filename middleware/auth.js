@@ -17,6 +17,7 @@ const authMiddleware = (req, res, next) => {
     // Vérifier le token
     jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key_for_dev', (err, decoded) => {
       if (err) {
+        logger.error(`Erreur de vérification du token: ${err.name} - ${err.message}`);
         if (err.name === 'TokenExpiredError') {
           return res.status(401).json({ error: 'Non autorisé: token expiré' });
         } else {

@@ -7,6 +7,43 @@ const { logger } = require('../config/logger');
 const { getDb } = require('../db/setup');
 const authMiddleware = require('../middleware/auth');
 
+// Route de débogage - Vérifier un token JWT
+router.post('/verify-token', (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token requis' });
+    }
+    
+    // Vérifier le token
+    jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key_for_dev', (err, decoded) => {
+      if (err) {
+        logger.error(`Erreur de vérification du token: ${err.name} - ${err.message}`);
+        
+        return res.status(200).json({ 
+          valid: false, 
+          error: err.name, 
+          message: err.message 
+        });
+      }
+      
+      return res.status(200).json({ 
+        valid: true, 
+        decoded: {
+          id: decoded.id,
+          username: decoded.username,
+          exp: decoded.exp,
+          iat: decoded.iat
+        }
+      });
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la vérification du token:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // POST /api/auth/register - Enregistrement d'un utilisateur
 router.post('/register', async (req, res) => {
   try {
@@ -102,6 +139,8 @@ router.post('/login', (req, res) => {
           { expiresIn: process.env.JWT_EXPIRATION || '1d' }
         );
         
+        logger.info(`Token JWT généré pour ${username} (id: ${user.id})`);
+        
         // Mise à jour de la date de dernière connexion
         db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
         
@@ -128,6 +167,7 @@ router.post('/login', (req, res) => {
 // GET /api/auth/profile - Obtenir le profil utilisateur
 router.get('/profile', authMiddleware, (req, res) => {
   try {
+    logger.info(`Récupération du profil pour l'utilisateur ${req.user.username} (id: ${req.user.id})`);
     const db = getDb();
     
     db.get('SELECT id, username, email, created_at, last_login, last_activity FROM users WHERE id = ?', [req.user.id], (err, user) => {
@@ -137,6 +177,7 @@ router.get('/profile', authMiddleware, (req, res) => {
       }
       
       if (!user) {
+        logger.error(`Utilisateur id=${req.user.id} non trouvé dans la base de données`);
         return res.status(404).json({ error: 'Utilisateur non trouvé' });
       }
       
