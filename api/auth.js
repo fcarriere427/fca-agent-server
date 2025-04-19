@@ -174,7 +174,8 @@ router.get('/profile', authMiddleware, (req, res) => {
   }
 });
 
-module.exports = {
-  router,
-  authMiddleware
-};
+// Exporter uniquement le routeur
+module.exports = router;
+
+// Exporter le middleware d'authentification séparément
+exports.authMiddleware = authMiddleware;

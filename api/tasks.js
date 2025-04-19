@@ -3,11 +3,11 @@ const express = require('express');
 const router = express.Router();
 const { logger } = require('../config/logger');
 const { getDb } = require('../db/setup');
-const { authMiddleware } = require('./auth');
+const auth = require('./auth');
 const claudeService = require('../services/claude-service');
 
 // Middleware d'authentification pour les routes de tâches
-router.use(authMiddleware);
+router.use(auth.authMiddleware);
 
 // POST /api/tasks - Créer une nouvelle tâche
 router.post('/', async (req, res) => {

@@ -8,6 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const { setupDatabase } = require('./db/setup');
 const { logger } = require('./config/logger');
 
@@ -19,6 +20,13 @@ const authRoutes = require('./api/auth');
 // Initialisation
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Création du répertoire logs s'il n'existe pas
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir);
+  logger.info(`Répertoire créé: ${logsDir}`);
+}
 
 // Middleware
 app.use(helmet()); // Sécurité
