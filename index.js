@@ -14,8 +14,9 @@ const { logger } = require('./config/logger');
 
 // Routes
 const statusRoutes = require('./api/status');
-const tasksRoutes = require('./api/tasks');
-const authRoutes = require('./api/auth');
+// Désactivation temporaire des routes d'authentification et de tâches
+// const tasksRoutes = require('./api/tasks');
+// const authRoutes = require('./api/auth');
 
 // Initialisation
 const app = express();
@@ -40,12 +41,18 @@ app.use(morgan('dev', { stream: { write: message => logger.info(message.trim()) 
 
 // Routes API
 app.use('/api/status', statusRoutes);
-app.use('/api/tasks', tasksRoutes);
-app.use('/api/auth', authRoutes);
+// Désactivation temporaire des routes d'authentification et de tâches
+// app.use('/api/tasks', tasksRoutes);
+// app.use('/api/auth', authRoutes);
 
 // Route pour la santé du serveur
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
+// Route de test simple
+app.get('/api/test', (req, res) => {
+  res.status(200).json({ message: 'FCA-Agent API fonctionne correctement!' });
 });
 
 // Gestion des erreurs

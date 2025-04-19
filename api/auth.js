@@ -5,33 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { logger } = require('../config/logger');
 const { getDb } = require('../db/setup');
-
-// Middleware d'authentification
-const authMiddleware = (req, res, next) => {
-  try {
-    // Extraire le token du header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Non autorisé: token manquant' });
-    }
-    
-    const token = authHeader.split(' ')[1];
-    
-    // Vérifier le token
-    jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key_for_dev', (err, decoded) => {
-      if (err) {
-        return res.status(401).json({ error: 'Non autorisé: token invalide' });
-      }
-      
-      // Ajouter les informations utilisateur à la requête
-      req.user = decoded;
-      next();
-    });
-  } catch (error) {
-    logger.error('Erreur d\'authentification:', error);
-    res.status(500).json({ error: 'Erreur d\'authentification' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
 
 // POST /api/auth/register - Enregistrement d'un utilisateur
 router.post('/register', async (req, res) => {
@@ -174,7 +148,4 @@ router.get('/profile', authMiddleware, (req, res) => {
   }
 });
 
-// Export direct du middleware pour pouvoir l'utiliser sans passer par un objet
-module.exports.authMiddleware = authMiddleware;
-// Export du routeur comme objet par défaut
 module.exports = router;
