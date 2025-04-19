@@ -6,16 +6,29 @@ const { getDb } = require('../db/setup');
 // Middleware d'authentification
 const authMiddleware = (req, res, next) => {
   try {
-    // Extraire le token du header
+    // Extraire le token du header ou des query params
+    let token = null;
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Token dans l'en-tête
+      token = authHeader.split(' ')[1];
+      logger.info(`Token extrait de l'en-tête: ${token.substring(0, 20)}...`);
+    } else if (req.query.token) {
+      // Token dans les paramètres de requête
+      token = req.query.token;
+      logger.info(`Token extrait des params: ${token.substring(0, 20)}...`);
+    } else {
+      logger.error('Authentification échouée: Pas de token dans l\'en-tête ou les params');
+      logger.error(`Tous les en-têtes: ${JSON.stringify(req.headers)}`);
       return res.status(401).json({ error: 'Non autorisé: token manquant' });
     }
     
-    const token = authHeader.split(' ')[1];
-    
     // Vérifier le token
-    jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key_for_dev', (err, decoded) => {
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret_key_for_dev';
+    logger.info(`Utilisation du secret JWT: ${jwtSecret.substring(0, 3)}...${jwtSecret.substring(jwtSecret.length - 3)}`);
+    
+    jwt.verify(token, jwtSecret, (err, decoded) => {
       if (err) {
         logger.error(`Erreur de vérification du token: ${err.name} - ${err.message}`);
         if (err.name === 'TokenExpiredError') {
