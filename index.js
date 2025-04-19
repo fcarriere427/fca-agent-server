@@ -30,27 +30,20 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Middleware
-// Désactivation temporaire pour résoudre les problèmes CORS
-// app.use(helmet());
 // Configuration plus permissive pour la sécurité
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   crossOriginOpenerPolicy: { policy: 'unsafe-none' }
 }));
+
+// Configure CORS de manière très permissive
 app.use(cors({
-  origin: function(origin, callback){
-    // Autoriser les requêtes sans origine (comme des appels depuis Postman)
-    if(!origin) return callback(null, true);
-    // Autoriser toutes les extensions Chrome et localhost
-    if(origin.startsWith('chrome-extension://') || origin === 'http://localhost:8080'){
-      return callback(null, true);
-    }
-    callback(null, true);
-  },
+  origin: '*', // Autorise toutes les origines
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json({ limit: '10mb' })); // Permettre des requêtes JSON plus grandes pour les captures d'écran
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev', { stream: { write: message => logger.info(message.trim()) } }));
