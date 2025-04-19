@@ -31,12 +31,34 @@ function setupDatabase() {
           password_hash TEXT NOT NULL,
           email TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_login TEXT,
-          last_activity TEXT
+          last_login TEXT
         )`, (err) => {
           if (err) {
             logger.error('Erreur lors de la création de la table users:', err);
             return reject(err);
+          }
+        });
+        
+        // Vérifier si la colonne last_activity existe déjà
+        db.all("PRAGMA table_info(users)", (err, rows) => {
+          if (err) {
+            logger.error('Erreur lors de la vérification du schéma:', err);
+          } else {
+            // Vérifier si last_activity existe dans les colonnes
+            const hasLastActivity = rows.some(row => row.name === 'last_activity');
+            
+            if (!hasLastActivity) {
+              logger.info('Ajout de la colonne last_activity à la table users');
+              
+              // Ajouter la colonne manquante
+              db.run('ALTER TABLE users ADD COLUMN last_activity TEXT', (err) => {
+                if (err) {
+                  logger.error('Erreur lors de l\'ajout de la colonne last_activity:', err);
+                } else {
+                  logger.info('Colonne last_activity ajoutée avec succès');
+                }
+              });
+            }
           }
         });
         

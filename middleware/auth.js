@@ -53,8 +53,13 @@ const authMiddleware = (req, res, next) => {
         // Ajouter les informations utilisateur à la requête
         req.user = decoded;
         
-        // Mettre à jour la date de dernière activité
-        db.run('UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = ?', [decoded.id]);
+        // Mettre à jour la date de dernière activité (de manière non bloquante)
+        db.run('UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE id = ?', [decoded.id], function(err) {
+          if (err) {
+            logger.error(`Erreur lors de la mise à jour de last_activity: ${err.message}`);
+            // Continuer malgré l'erreur
+          }
+        });
         
         next();
       });
