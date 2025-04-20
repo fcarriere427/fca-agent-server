@@ -2,10 +2,56 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { logger } = require('../config/logger');
 const { getDb } = require('../db/setup');
 const authMiddleware = require('../middleware/auth');
+const { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  verifyRefreshToken, 
+  revokeAllRefreshTokens 
+} = require('../services/token-service');
+
+// POST /api/auth/refresh - Rafraîchir le token d'accès en utilisant le refresh token
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token requis' });
+    }
+    
+    try {
+      // Vérifier le refresh token et récupérer les données utilisateur
+      const userData = await verifyRefreshToken(refreshToken);
+      
+      // Générer un nouveau token d'accès
+      const newAccessToken = generateAccessToken(userData);
+      
+      // Générer un nouveau refresh token
+      const ipAddress = req.ip || req.connection.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+      const newRefreshToken = await generateRefreshToken(userData, ipAddress, userAgent);
+      
+      logger.info(`Tokens rafraîchis pour l'utilisateur ${userData.username} (id: ${userData.id})`);
+      
+      // Renvoyer les nouveaux tokens
+      res.status(200).json({
+        success: true,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        user: userData
+      });
+      
+    } catch (error) {
+      logger.error('Erreur de validation du refresh token:', error.message);
+      return res.status(401).json({ error: 'Refresh token invalide ou expiré' });
+    }
+  } catch (error) {
+    logger.error('Erreur lors du rafraîchissement du token:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // Route de débogage - Vérifier un token JWT
 router.post('/verify-token', (req, res) => {
@@ -132,14 +178,17 @@ router.post('/login', (req, res) => {
           return res.status(401).json({ error: 'Identifiants invalides' });
         }
         
-        // Création du token JWT
-        const token = jwt.sign(
-          { id: user.id, username: user.username },
-          process.env.JWT_SECRET || 'default_secret_key_for_dev',
-          { expiresIn: process.env.JWT_EXPIRATION || '1d' }
-        );
+        // Récupération de l'IP et de l'User-Agent pour le refresh token
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
         
-        logger.info(`Token JWT généré pour ${username} (id: ${user.id})`);
+        // Génération du token d'accès (JWT)
+        const accessToken = generateAccessToken(user);
+        
+        // Génération du refresh token
+        const refreshToken = await generateRefreshToken(user, ipAddress, userAgent);
+        
+        logger.info(`Tokens générés pour ${username} (id: ${user.id})`);
         
         // Mise à jour de la date de dernière connexion
         db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
@@ -147,13 +196,13 @@ router.post('/login', (req, res) => {
         logger.info(`Utilisateur connecté: ${username} (id: ${user.id})`);
         const responseData = { 
           success: true,
-          token,
+          accessToken,
+          refreshToken,
           user: {
             id: user.id,
             username: user.username
           }
         };
-        logger.info(`Données de réponse: ${JSON.stringify(responseData)}`);
         res.status(200).json(responseData);
       } catch (error) {
         logger.error('Erreur lors de la vérification du mot de passe:', error);
@@ -201,6 +250,42 @@ router.get('/profile', authMiddleware, (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur lors de la récupération du profil:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/auth/logout - Déconnexion et révocation des refresh tokens
+router.post('/logout', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { refreshToken } = req.body;
+    
+    // Si un refresh token spécifique est fourni, révoquer seulement celui-ci
+    if (refreshToken) {
+      const db = getDb();
+      
+      db.run(
+        'UPDATE refresh_tokens SET revoked = 1 WHERE token = ? AND user_id = ?',
+        [refreshToken, userId],
+        function(err) {
+          if (err) {
+            logger.error('Erreur lors de la révocation du refresh token:', err);
+            return res.status(500).json({ error: 'Erreur serveur' });
+          }
+          
+          logger.info(`Refresh token révoqué pour l'utilisateur ${req.user.username}`);
+          res.status(200).json({ success: true, message: 'Déconnecté avec succès' });
+        }
+      );
+    } else {
+      // Si aucun refresh token n'est spécifié, révoquer tous les refresh tokens de l'utilisateur
+      await revokeAllRefreshTokens(userId);
+      
+      logger.info(`Tous les refresh tokens révoqués pour l'utilisateur ${req.user.username}`);
+      res.status(200).json({ success: true, message: 'Déconnecté de tous les appareils avec succès' });
+    }
+  } catch (error) {
+    logger.error('Erreur lors de la déconnexion:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

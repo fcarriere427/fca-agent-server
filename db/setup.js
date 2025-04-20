@@ -80,6 +80,25 @@ function setupDatabase() {
           }
         });
         
+        // Table des refresh tokens
+        db.run(`CREATE TABLE IF NOT EXISTS refresh_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          expires_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          used BOOLEAN DEFAULT 0,
+          revoked BOOLEAN DEFAULT 0,
+          ip_address TEXT,
+          user_agent TEXT,
+          FOREIGN KEY (user_id) REFERENCES users (id)
+        )`, (err) => {
+          if (err) {
+            logger.error('Erreur lors de la création de la table refresh_tokens:', err);
+            return reject(err);
+          }
+        });
+        
         // Table des configurations
         db.run(`CREATE TABLE IF NOT EXISTS settings (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

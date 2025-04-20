@@ -6,27 +6,22 @@ const { getDb } = require('../db/setup');
 // Middleware d'authentification
 const authMiddleware = (req, res, next) => {
   try {
-    // Extraire le token du header ou des query params
+    // Extraire le token uniquement de l'en-tête Authorization
     let token = null;
     const authHeader = req.headers.authorization;
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       // Token dans l'en-tête
       token = authHeader.split(' ')[1];
-      logger.info(`Token extrait de l'en-tête: ${token.substring(0, 20)}...`);
-    } else if (req.query.token) {
-      // Token dans les paramètres de requête
-      token = req.query.token;
-      logger.info(`Token extrait des params: ${token.substring(0, 20)}...`);
+      logger.debug(`Token extrait de l'en-tête Authorization`);
     } else {
-      logger.error('Authentification échouée: Pas de token dans l\'en-tête ou les params');
-      logger.error(`Tous les en-têtes: ${JSON.stringify(req.headers)}`);
-      return res.status(401).json({ error: 'Non autorisé: token manquant' });
+      logger.error('Authentification échouée: Pas de token dans l\'en-tête Authorization');
+      return res.status(401).json({ error: 'Non autorisé: token manquant ou format incorrect' });
     }
     
     // Vérifier le token
     const jwtSecret = process.env.JWT_SECRET || 'default_secret_key_for_dev';
-    logger.info(`Utilisation du secret JWT: ${jwtSecret.substring(0, 3)}...${jwtSecret.substring(jwtSecret.length - 3)}`);
+    logger.debug('Vérification du token JWT');
     
     jwt.verify(token, jwtSecret, (err, decoded) => {
       if (err) {
