@@ -51,25 +51,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Middleware pour analyser les cookies
 app.use(morgan('dev', { stream: { write: message => logger.info(message.trim()) } }));
 
-// Servir la page de connexion et les ressources statiques non protégées
-app.get('/login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-// Middleware pour protéger toutes les autres pages HTML
-app.use('/', (req, res, next) => {
-  // Si ce n'est pas la page de connexion et que ça se termine par .html ou pas d'extension (la racine)
-  if (req.path !== '/login.html' && (req.path === '/' || req.path.endsWith('.html'))) {
-    // Vérifier l'authentification
-    simpleAuthMiddleware(req, res, next);
-  } else {
-    // Pour les autres ressources statiques (CSS, JS, images), on les sert sans authentification
-    next();
-  }
-});
-
-// Servir les fichiers statiques depuis le dossier public
-app.use(express.static(path.join(__dirname, 'public')));
+// Nous ne servons plus les fichiers statiques directement depuis le serveur Node.js
+// car Nginx s'en charge déjà. On se concentre uniquement sur l'API.
 
 // Routes API d'authentification (non protégées)
 app.use('/api/auth', authRoutes);
