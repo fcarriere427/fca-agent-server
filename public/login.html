@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FCA-Agent - Connexion</title>
+    <title>FCA-Agent - Utiliser l'extension</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,99 +14,37 @@
             height: 100vh;
             margin: 0;
         }
-        .login-container {
+        .message-container {
             background-color: white;
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 320px;
-        }
-        .login-title {
+            width: 420px;
             text-align: center;
+        }
+        .title {
             margin-bottom: 20px;
             color: #333;
         }
-        .input-group {
-            margin-bottom: 15px;
+        .message {
+            margin-bottom: 20px;
+            line-height: 1.5;
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        input[type="password"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #3367d6;
-        }
-        .error-message {
-            color: #d32f2f;
-            margin-top: 15px;
-            text-align: center;
-            display: none;
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #4285f4;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2 class="login-title">FCA-Agent</h2>
-        <form id="loginForm">
-            <div class="input-group">
-                <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">Se connecter</button>
-            <div id="errorMessage" class="error-message"></div>
-        </form>
+    <div class="message-container">
+        <div class="icon">🧩</div>
+        <h2 class="title">FCA-Agent</h2>
+        <div class="message">
+            <p>Ce serveur nécessite l'utilisation de l'extension Chrome FCA-Agent pour l'authentification.</p>
+            <p>Veuillez utiliser l'interface de connexion de l'extension pour accéder aux fonctionnalités.</p>
+        </div>
     </div>
-
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const errorMessage = document.getElementById('errorMessage');
-            
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Redirection vers la page principale après connexion réussie
-                    window.location.href = '/';
-                } else {
-                    // Afficher le message d'erreur
-                    errorMessage.textContent = data.error || 'Erreur d\'authentification';
-                    errorMessage.style.display = 'block';
-                }
-            } catch (error) {
-                errorMessage.textContent = 'Erreur de connexion au serveur';
-                errorMessage.style.display = 'block';
-                console.error('Erreur:', error);
-            }
-        });
-    </script>
 </body>
 </html>
