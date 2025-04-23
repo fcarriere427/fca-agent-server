@@ -19,6 +19,7 @@ const statusRoutes = require('./api/status');
 // Désactivation temporaire de la route de tâches
 // const tasksRoutes = require('./api/tasks');
 const authRoutes = require('./api/auth');
+const claudeTestRoutes = require('./api/claude-test');
 
 // Initialisation
 const app = express();
@@ -56,6 +57,9 @@ app.use(morgan('dev', { stream: { write: message => logger.info(message.trim()) 
 
 // Routes API d'authentification (non protégées)
 app.use('/api/auth', authRoutes);
+
+// Route de test pour l'API Claude (non protégée pour faciliter les tests)
+app.use('/api/claude-test', claudeTestRoutes);
 
 // Middleware d'authentification pour protéger les routes suivantes
 // Note: on exclut les routes d'authentification et les fichiers statiques
