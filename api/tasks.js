@@ -67,6 +67,13 @@ router.post('/', async (req, res) => {
           );
           
           // Retourner le résultat
+          console.log('Résultat à retourner au client:', {
+            taskId,
+            status,
+            resultSize: result ? JSON.stringify(result).length : 0,
+            hasResponse: result && result.response ? 'Oui' : 'Non',
+            responseLength: result && result.response ? result.response.length : 0
+          });
           res.status(200).json({ 
             taskId,
             status,

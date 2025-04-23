@@ -228,8 +228,13 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
     });
     
     logger.info(`Synthèse des emails Gmail générée: ${response.id}`);
+    // Vérifier le contenu de la réponse
+    const responseText = response.content[0].text;
+    logger.info(`Longueur de la réponse: ${responseText.length} caractères`);
+    logger.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
+    
     return {
-      response: response.content[0].text,
+      response: responseText,
       model: response.model,
       usage: response.usage
     };
