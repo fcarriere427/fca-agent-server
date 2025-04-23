@@ -6,6 +6,9 @@ const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');
 const authMiddleware = require('../middleware/simple-auth');
 
+// Stockage temporaire des réponses complètes
+const responseCache = {};
+
 // Middleware d'authentification pour les routes de tâches
 router.use(authMiddleware);
 
@@ -75,23 +78,33 @@ router.post('/', async (req, res) => {
             responseLength: result && result.response ? result.response.length : 0
           });
           
-          // Si la réponse est très longue, envoyons juste un résumé
-          let responseToSend = result;
-          if (result && result.response && result.response.length > 1000) {
-            // Créer une version simplifiée avec juste le début de la réponse
-            responseToSend = {
-              ...result,
-              fullResponse: result.response,
-              response: result.response.substring(0, 1000) + '... (réponse complète disponible sur le serveur)'
-            };
-            console.log('Réponse tronquée pour transmission');
+          // Stocker la réponse complète dans le cache temporaire
+          if (result && result.response) {
+            const responseId = `response_${taskId}_${Date.now()}`;
+            responseCache[responseId] = result.response;
+            // Supprimer la cache après 10 minutes
+            setTimeout(() => {
+              delete responseCache[responseId];
+              logger.info(`Cache supprimée pour ${responseId}`);
+            }, 10 * 60 * 1000);
+            
+            // Renvoyer une référence à la réponse complète au lieu de la réponse elle-même
+            res.status(200).json({ 
+              taskId,
+              status,
+              responseId,
+              // Envoyer un court aperçu de la réponse
+              preview: result.response.substring(0, 100) + '...',
+              fullResponseAvailable: true
+            });
+          } else {
+            // Si pas de réponse ou réponse courte, renvoyer directement
+            res.status(200).json({ 
+              taskId,
+              status,
+              result
+            });
           }
-          
-          res.status(200).json({ 
-            taskId,
-            status,
-            result: responseToSend
-          });
         } catch (error) {
           logger.error(`Erreur lors de l'exécution de la tâche ${taskId}:`, error);
           
@@ -150,6 +163,27 @@ router.get('/', (req, res) => {
     );
   } catch (error) {
     logger.error('Erreur lors de la récupération des tâches:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/tasks/response/:id - Récupérer une réponse cachée par ID
+router.get('/response/:id', (req, res) => {
+  try {
+    const responseId = req.params.id;
+    
+    // Vérifier si la réponse existe dans le cache
+    if (!responseCache[responseId]) {
+      return res.status(404).json({ error: 'Réponse non trouvée ou expirée' });
+    }
+    
+    // Renvoyer la réponse complète
+    res.status(200).json({ 
+      response: responseCache[responseId],
+      id: responseId
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération de la réponse cachée:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
