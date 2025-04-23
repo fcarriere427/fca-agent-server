@@ -2,10 +2,33 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { logger } = require('../utils/logger');
 
-// Initialisation du client Anthropic
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_KEY',
-});
+// Initialisation du client Anthropic avec vérification
+const apiKey = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_KEY';
+let anthropic;
+
+try {
+  // Initialisation du client avec vérification de la clé
+  if (apiKey === 'PLACEHOLDER_KEY' || apiKey === 'your_anthropic_api_key_here') {
+    logger.error('Clé API Anthropic non configurée correctement dans .env');
+    throw new Error('Clé API Anthropic non configurée');
+  }
+  
+  anthropic = new Anthropic({
+    apiKey: apiKey,
+  });
+  
+  logger.info('Client Anthropic initialisé avec succès');
+} catch (error) {
+  logger.error('Erreur lors de l\'initialisation du client Anthropic:', error);
+  // Initialiser un objet de secours pour éviter les erreurs null
+  anthropic = {
+    messages: {
+      create: async () => {
+        throw new Error('Client Anthropic non initialisé correctement');
+      }
+    }
+  };
+}
 
 // Modèle Claude à utiliser
 const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-opus-20240229';
