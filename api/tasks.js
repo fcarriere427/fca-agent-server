@@ -45,6 +45,9 @@ router.post('/', async (req, res) => {
             case 'email-summary':
               result = await claudeService.summarizeEmails(data.prompt);
               break;
+            case 'gmail-summary':
+              result = await claudeService.summarizeGmailEmails(data.emails, data.searchQuery);
+              break;
             case 'teams-summary':
               result = await claudeService.summarizeTeams(data.prompt);
               break;

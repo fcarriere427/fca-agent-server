@@ -173,6 +173,72 @@ async function draftEmail(prompt) {
   }
 }
 
+// Fonction spécifique pour synthétiser les emails Gmail
+async function summarizeGmailEmails(emails, searchQuery = '') {
+  try {
+    logger.info(`Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
+    
+    const systemPrompt = `Vous êtes un assistant professionnel qui synthétise efficacement les emails Gmail.
+    Je vais vous fournir plusieurs emails extraits de Gmail et vous devrez:
+    1. Identifier les messages importants nécessitant une attention ou une action
+    2. Résumer le contenu principal de chaque email important
+    3. Regrouper les emails par thème ou projet
+    4. Suggérer des actions concrètes basées sur le contenu des emails
+    5. Si un sujet de recherche est spécifié, vous concentrer sur les emails pertinents
+    
+    Votre synthèse doit être:
+    - Concise mais complète
+    - Structurée par importance ou par thème
+    - Orientée vers les actions à entreprendre
+    - Professionnelle et facile à lire
+    - Adaptée au contexte professionnel de l'utilisateur`;
+    
+    // Préparer le contenu formaté des emails pour Claude
+    const emailsContent = emails.map((email, index) => {
+      if (email.openEmail) {
+        return `Email #${index + 1}:
+        De: ${email.openEmail.sender.name} <${email.openEmail.sender.email}>
+        Date: ${email.openEmail.time}
+        Objet: ${email.openEmail.subject}
+        
+        ${email.openEmail.body}`;
+      } else {
+        return `Email #${index + 1}:
+        De: ${email.sender}
+        Date: ${email.time}
+        Objet: ${email.subject}
+        
+        ${email.preview}`;
+      }
+    }).join('\n\n-----------\n\n');
+    
+    // Construire le prompt pour Claude
+    const userPrompt = searchQuery
+      ? `Voici une liste d'emails Gmail. Veuillez me faire une synthèse focalisée sur le sujet "${searchQuery}":\n\n${emailsContent}`
+      : `Voici une liste d'emails Gmail. Veuillez me faire une synthèse complète:\n\n${emailsContent}`;
+    
+    const response = await anthropic.messages.create({
+      model: DEFAULT_MODEL,
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3,
+    });
+    
+    logger.info(`Synthèse des emails Gmail générée: ${response.id}`);
+    return {
+      response: response.content[0].text,
+      model: response.model,
+      usage: response.usage
+    };
+  } catch (error) {
+    logger.error('Erreur lors de la synthèse des emails Gmail:', error);
+    throw new Error(`Erreur API Claude: ${error.message}`);
+  }
+}
+
 // Fonction pour analyser une capture d'écran
 async function analyzeScreenshot(imageBase64, prompt) {
   try {
@@ -228,5 +294,6 @@ module.exports = {
   summarizeEmails,
   summarizeTeams,
   draftEmail,
-  analyzeScreenshot
+  analyzeScreenshot,
+  summarizeGmailEmails
 };
