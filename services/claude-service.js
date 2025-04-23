@@ -1,5 +1,5 @@
 // FCA-Agent - Service d'interaction avec l'API Claude d'Anthropic
-const Anthropic = require('@anthropic-ai/sdk');
+const { Anthropic } = require('@anthropic-ai/sdk');
 const { logger } = require('../utils/logger');
 
 // Initialisation du client Anthropic avec vérification
@@ -7,12 +7,13 @@ const apiKey = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_KEY';
 let anthropic;
 
 try {
-  // Initialisation du client avec vérification de la clé
+  // Vérification de la clé API
   if (apiKey === 'PLACEHOLDER_KEY' || apiKey === 'your_anthropic_api_key_here') {
     logger.error('Clé API Anthropic non configurée correctement dans .env');
     throw new Error('Clé API Anthropic non configurée');
   }
   
+  // Initialisation du client avec la nouvelle structure de la version 0.39.0
   anthropic = new Anthropic({
     apiKey: apiKey,
   });
@@ -76,8 +77,8 @@ async function summarizeEmails(prompt) {
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
       max_tokens: 1500,
+      system: systemPrompt,
       messages: [
-        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
@@ -112,8 +113,8 @@ async function summarizeTeams(prompt) {
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
       max_tokens: 1500,
+      system: systemPrompt,
       messages: [
-        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
@@ -153,8 +154,8 @@ async function draftEmail(prompt) {
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
       max_tokens: 1500,
+      system: systemPrompt,
       messages: [
-        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       temperature: 0.5,
@@ -197,8 +198,8 @@ async function analyzeScreenshot(imageBase64, prompt) {
     const response = await anthropic.messages.create({
       model: 'claude-3-opus-20240229', // Modèle avec capacité de vision
       max_tokens: 1500,
+      system: systemPrompt,
       messages: [
-        { role: 'system', content: systemPrompt },
         { 
           role: 'user', 
           content: [
