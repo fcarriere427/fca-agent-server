@@ -1,6 +1,6 @@
 // Middleware d'authentification simplifié
-const { logger } = require('../config/logger');
-const authConfig = require('../config/auth-config');
+const { logger } = require('../utils/logger');
+const authConfig = require('../utils/auth-config');
 
 /**
  * Middleware qui vérifie si l'utilisateur est authentifié via un cookie

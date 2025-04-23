@@ -1,7 +1,7 @@
 // FCA-Agent - Routes pour le statut du serveur
 const express = require('express');
 const router = express.Router();
-const { logger } = require('../config/logger');
+const { logger } = require('../utils/logger');
 const { getDb } = require('../db/setup');
 
 // GET /api/status - Vérifier l'état du serveur
