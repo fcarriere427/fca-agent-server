@@ -31,8 +31,8 @@ try {
   };
 }
 
-// Modèle Claude à utiliser
-const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-opus-20240229';
+// Modèle Claude à utiliser - Haiku est le moins coûteux
+const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307';
 
 // Fonction pour traiter un message utilisateur général
 async function processMessage(message) {
@@ -262,7 +262,7 @@ async function analyzeScreenshot(imageBase64, prompt) {
     3. Me guider sur la manière d'interagir avec cette interface selon ma demande`;
     
     const response = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229', // Modèle avec capacité de vision
+      model: DEFAULT_MODEL, // Utiliser le modèle par défaut pour réduire les coûts
       max_tokens: 1500,
       system: systemPrompt,
       messages: [
