@@ -233,8 +233,15 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
     logger.info(`Longueur de la réponse: ${responseText.length} caractères`);
     logger.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
     
+    // Assainir la réponse pour éviter les problèmes de sérialisation JSON
+    // Remplacer les caractères problématiques par des espaces
+    const cleanedResponse = responseText
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ') // Caractères de contrôle
+      .replace(/\u2028/g, '\n')  // Line separator
+      .replace(/\u2029/g, '\n'); // Paragraph separator
+    
     return {
-      response: responseText,
+      response: cleanedResponse,
       model: response.model,
       usage: response.usage
     };

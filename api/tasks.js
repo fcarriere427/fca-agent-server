@@ -74,10 +74,23 @@ router.post('/', async (req, res) => {
             hasResponse: result && result.response ? 'Oui' : 'Non',
             responseLength: result && result.response ? result.response.length : 0
           });
+          
+          // Si la réponse est très longue, envoyons juste un résumé
+          let responseToSend = result;
+          if (result && result.response && result.response.length > 1000) {
+            // Créer une version simplifiée avec juste le début de la réponse
+            responseToSend = {
+              ...result,
+              fullResponse: result.response,
+              response: result.response.substring(0, 1000) + '... (réponse complète disponible sur le serveur)'
+            };
+            console.log('Réponse tronquée pour transmission');
+          }
+          
           res.status(200).json({ 
             taskId,
             status,
-            result
+            result: responseToSend
           });
         } catch (error) {
           logger.error(`Erreur lors de l'exécution de la tâche ${taskId}:`, error);
