@@ -16,8 +16,7 @@ const simpleAuthMiddleware = require('./middleware/simple-auth');
 
 // Routes
 const statusRoutes = require('./api/status');
-// Désactivation temporaire de la route de tâches
-// const tasksRoutes = require('./api/tasks');
+const tasksRoutes = require('./api/tasks');
 const authRoutes = require('./api/auth');
 const claudeTestRoutes = require('./api/claude-test');
 
@@ -75,8 +74,7 @@ app.use('/api', (req, res, next) => {
 
 // Routes API protégées
 app.use('/api/status', statusRoutes);
-// Désactivation temporaire de la route de tâches
-// app.use('/api/tasks', tasksRoutes);
+app.use('/api/tasks', tasksRoutes);
 
 // Route pour la santé du serveur (non protégée)
 app.get('/health', (req, res) => {
