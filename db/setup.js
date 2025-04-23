@@ -1,7 +1,7 @@
 // FCA-Agent - Configuration de base de données simplifiée
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const { logger } = require('../config/logger');
+const { logger } = require('../utils/logger');
 
 // Chemin vers la base de données
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'fca-agent.db');
