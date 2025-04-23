@@ -1,7 +1,10 @@
 // Configuration simplifiée de l'authentification
+
+// Utilisation de la variable d'environnement pour le mot de passe
+// Valeur par défaut seulement pour le développement
 module.exports = {
-  // Mot de passe en clair pour l'authentification
-  password: 'fca-agent-password',
+  // Mot de passe récupéré depuis les variables d'environnement
+  password: process.env.AUTH_PASSWORD || 'dev-password-only',
   
   // Durée de validité du cookie d'authentification (en millisecondes)
   // Par défaut: 24 heures
