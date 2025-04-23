@@ -4,7 +4,7 @@ const router = express.Router();
 const { logger } = require('../utils/logger');
 const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');
-const authMiddleware = require('../middleware/auth');
+const authMiddleware = require('../middleware/simple-auth');
 
 // Middleware d'authentification pour les routes de tâches
 router.use(authMiddleware);
@@ -13,7 +13,8 @@ router.use(authMiddleware);
 router.post('/', async (req, res) => {
   try {
     const { type, data } = req.body;
-    const userId = req.user.id;
+    // ID utilisateur par défaut pour l'authentification simplifiée
+    const userId = 1; // On utilise un ID fixe puisque simple-auth n'utilise pas d'ID utilisateur
     
     // Validation
     if (!type) {
@@ -96,7 +97,8 @@ router.post('/', async (req, res) => {
 // GET /api/tasks - Obtenir la liste des tâches
 router.get('/', (req, res) => {
   try {
-    const userId = req.user.id;
+    // ID utilisateur par défaut pour l'authentification simplifiée
+    const userId = 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
     
@@ -136,7 +138,8 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   try {
     const taskId = req.params.id;
-    const userId = req.user.id;
+    // ID utilisateur par défaut pour l'authentification simplifiée
+    const userId = 1;
     
     const db = getDb();
     db.get(
