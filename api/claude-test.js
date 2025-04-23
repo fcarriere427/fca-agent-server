@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { processMessage } = require('../services/claude-service');
-const { logger } = require('../config/logger');
+const { logger } = require('../utils/logger');
 
 // Route simple pour tester l'API Claude
 router.post('/test', async (req, res) => {
