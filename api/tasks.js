@@ -1,3 +1,17 @@
+// GET /api/tasks/hello - Route de test simple
+router.get('/hello', (req, res) => {
+  // Définir les en-têtes CORS pour permettre l'accès depuis n'importe quelle origine
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Envoyer une réponse simple
+  res.send('Hello World - Test de l\'API réussi !');
+  
+  logger.info('Route de test /hello appelée avec succès');
+});
+
 // FCA-Agent - Routes pour les tâches
 const express = require('express');
 const router = express.Router();
@@ -221,8 +235,12 @@ router.get('/response/:id', (req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Response-Id', responseId);
     res.setHeader('X-Response-Length', responseCache[responseId].length.toString());
+    
+    // Ajouter des en-têtes CORS très permissifs
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.setHeader('Access-Control-Max-Age', '3600');
     
     logger.info(`[DEBUG] Headers de réponse: ${JSON.stringify(res.getHeaders())}`);
     
@@ -237,6 +255,16 @@ router.get('/response/:id', (req, res) => {
     logger.error(`[DEBUG] Stack trace: ${error.stack}`);
     res.status(500).json({ error: 'Erreur serveur', message: error.message });
   }
+});
+
+// Route simple pour tester la communication
+router.get('/hello', (req, res) => {
+  console.log('Route /hello appelée');
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.send('Hello World from FCA-Agent server');
 });
 
 // GET /api/tasks/:id - Obtenir les détails d'une tâche
