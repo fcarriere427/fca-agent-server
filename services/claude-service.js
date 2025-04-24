@@ -232,6 +232,7 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
     const responseText = response.content[0].text;
     logger.info(`Longueur de la réponse: ${responseText.length} caractères`);
     logger.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
+    logger.info(`Réponse complète: ${responseText}`);
     
     // Assainir la réponse pour éviter les problèmes de sérialisation JSON
     // Remplacer les caractères problématiques par des espaces
