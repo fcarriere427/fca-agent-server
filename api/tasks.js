@@ -5,6 +5,12 @@ const { logger } = require('../utils/logger');
 const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');
 const authMiddleware = require('../middleware/simple-auth');
+const { 
+  logResponseCache, 
+  logResponseSent, 
+  logResponseRequest,
+  logClaudeResponse 
+} = require('../middleware/response-logger');
 
 // Stockage temporaire des réponses complètes
 const responseCache = {};
@@ -69,19 +75,32 @@ router.post('/', async (req, res) => {
             [status, JSON.stringify(result), taskId]
           );
           
-          // Retourner le résultat
-          console.log('Résultat à retourner au client:', {
-            taskId,
-            status,
-            resultSize: result ? JSON.stringify(result).length : 0,
-            hasResponse: result && result.response ? 'Oui' : 'Non',
-            responseLength: result && result.response ? result.response.length : 0
+          // Log détaillé de la réponse
+          console.log('Réponse complète de Claude:', {
+            responseLength: result.response ? result.response.length : 0,
+            responseStart: result.response ? result.response.substring(0, 100) + '...' : 'Pas de réponse',
+            responseType: result.response ? typeof result.response : 'undefined'
           });
+          
+          // Log de la réponse de Claude dans le fichier spécifique
+          logClaudeResponse(taskId, type, result);
           
           // Stocker la réponse complète dans le cache temporaire
           if (result && result.response) {
             const responseId = `response_${taskId}_${Date.now()}`;
-            responseCache[responseId] = result.response;
+            
+            // Stocker une version saine de la réponse pour éviter les problèmes de sérialisation
+            const safeResponse = result.response
+              .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ') // Caractères de contrôle
+              .replace(/\u2028/g, '\n')  // Line separator
+              .replace(/\u2029/g, '\n'); // Paragraph separator
+            
+            responseCache[responseId] = safeResponse;
+            
+            // Log explicite pour le cache
+            logger.info(`Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
+            logResponseCache(responseId, safeResponse.length);
+            
             // Supprimer la cache après 10 minutes
             setTimeout(() => {
               delete responseCache[responseId];
@@ -93,8 +112,8 @@ router.post('/', async (req, res) => {
               taskId,
               status,
               responseId,
-              // Envoyer un court aperçu de la réponse
-              preview: result.response.substring(0, 100) + '...',
+              // Envoyer un court aperçu de la réponse - s'assurer qu'il est correctement encodé
+              preview: safeResponse.substring(0, 100) + '...',
               fullResponseAvailable: true
             });
           } else {
@@ -171,17 +190,21 @@ router.get('/', (req, res) => {
 router.get('/response/:id', (req, res) => {
   try {
     const responseId = req.params.id;
+    logResponseRequest(responseId);
     
     // Vérifier si la réponse existe dans le cache
     if (!responseCache[responseId]) {
+      logger.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.status(404).json({ error: 'Réponse non trouvée ou expirée' });
     }
     
-    // Renvoyer la réponse complète
-    res.status(200).json({ 
-      response: responseCache[responseId],
-      id: responseId
-    });
+    // Log détaillé de la réponse avant envoi
+    logger.info(`Envoi de réponse complète depuis le cache: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    logResponseSent(responseId, responseCache[responseId].length);
+    
+    // Envoyer la réponse en format texte brut pour éviter les problèmes de JSON
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.status(200).send(responseCache[responseId]);
   } catch (error) {
     logger.error('Erreur lors de la récupération de la réponse cachée:', error);
     res.status(500).json({ error: 'Erreur serveur' });
