@@ -101,6 +101,10 @@ router.post('/', async (req, res) => {
             logger.info(`Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
             logResponseCache(responseId, safeResponse.length);
             
+            // Créer un fichier log des clés du cache pour debugging
+            const cacheKeys = Object.keys(responseCache);
+            logger.info(`Clés disponibles dans le cache: ${cacheKeys.join(', ')}`);
+            
             // Supprimer la cache après 10 minutes
             setTimeout(() => {
               delete responseCache[responseId];
@@ -190,6 +194,16 @@ router.get('/', (req, res) => {
 router.get('/response/:id', (req, res) => {
   try {
     const responseId = req.params.id;
+    
+    // Log détaillé de la requête
+    logger.info(`[DEBUG] Requête de réponse reçue pour ID: ${responseId}`);
+    logger.info(`[DEBUG] Headers de la requête: ${JSON.stringify(req.headers)}`);
+    
+    // Log du contenu actuel du cache
+    const cacheKeys = Object.keys(responseCache);
+    logger.info(`[DEBUG] Clés actuellement en cache: ${cacheKeys.join(', ')}`);
+    logger.info(`[DEBUG] Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
+    
     logResponseRequest(responseId);
     
     // Vérifier si la réponse existe dans le cache
@@ -200,14 +214,28 @@ router.get('/response/:id', (req, res) => {
     
     // Log détaillé de la réponse avant envoi
     logger.info(`Envoi de réponse complète depuis le cache: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    logger.info(`[DEBUG] Type de contenu de la réponse: ${typeof responseCache[responseId]}`);
+    logger.info(`[DEBUG] Début de la réponse: ${responseCache[responseId].substring(0, 50)}...`);
+    
+    // Log complet des headers qui seront envoyés
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Response-Id', responseId);
+    res.setHeader('X-Response-Length', responseCache[responseId].length.toString());
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    
+    logger.info(`[DEBUG] Headers de réponse: ${JSON.stringify(res.getHeaders())}`);
+    
     logResponseSent(responseId, responseCache[responseId].length);
     
-    // Envoyer la réponse en format texte brut pour éviter les problèmes de JSON
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    // Envoyer la réponse en format texte brut
     res.status(200).send(responseCache[responseId]);
+    
+    logger.info(`[DEBUG] Réponse envoyée avec succès pour ${responseId}`);
   } catch (error) {
-    logger.error('Erreur lors de la récupération de la réponse cachée:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    logger.error(`[DEBUG] Erreur lors de la récupération de la réponse cachée: ${error.message}`, error);
+    logger.error(`[DEBUG] Stack trace: ${error.stack}`);
+    res.status(500).json({ error: 'Erreur serveur', message: error.message });
   }
 });
 
@@ -249,4 +277,24 @@ router.get('/:id', (req, res) => {
   }
 });
 
-module.exports = router;
+// Ajout d'une route de secours pour tester le système de réponse
+router.get('/test/cache-status', (req, res) => {
+  try {
+    const cacheKeys = Object.keys(responseCache);
+    const cacheStatus = cacheKeys.map(key => ({
+      id: key,
+      length: responseCache[key] ? responseCache[key].length : 0,
+      preview: responseCache[key] ? responseCache[key].substring(0, 50) + '...' : 'Vide'
+    }));
+    
+    res.status(200).json({
+      cacheSize: cacheKeys.length,
+      entries: cacheStatus
+    });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération du statut du cache:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = { router, responseCache };

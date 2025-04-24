@@ -72,9 +72,19 @@ app.use('/api', (req, res, next) => {
   simpleAuthMiddleware(req, res, next);
 });
 
+// Importer les routes JSONP
+const jsonpRoutes = require('./api/jsonp');
+
 // Routes API protégées
 app.use('/api/status', statusRoutes);
-app.use('/api/tasks', tasksRoutes);
+app.use('/api/tasks', tasksRoutes.router);
+
+// Partager le cache de réponses entre tasks.js et jsonp.js
+const tasksCache = require('./api/tasks').responseCache;
+jsonpRoutes.initializeCache(tasksCache);
+
+// Routes JSONP (non protégées pour simplifier les tests)
+app.use('/api/jsonp', jsonpRoutes.router);
 
 // Route pour la santé du serveur (non protégée)
 app.get('/health', (req, res) => {
