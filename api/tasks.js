@@ -1,17 +1,3 @@
-// GET /api/tasks/hello - Route de test simple
-router.get('/hello', (req, res) => {
-  // Définir les en-têtes CORS pour permettre l'accès depuis n'importe quelle origine
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Envoyer une réponse simple
-  res.send('Hello World - Test de l\'API réussi !');
-  
-  logger.info('Route de test /hello appelée avec succès');
-});
-
 // FCA-Agent - Routes pour les tâches
 const express = require('express');
 const router = express.Router();
@@ -31,6 +17,20 @@ const responseCache = {};
 
 // Middleware d'authentification pour les routes de tâches
 router.use(authMiddleware);
+
+// GET /api/tasks/hello - Route de test simple
+router.get('/hello', (req, res) => {
+  // Définir les en-têtes CORS pour permettre l'accès depuis n'importe quelle origine
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Envoyer une réponse simple
+  res.send('Hello World - Test de l\'API réussi !');
+  
+  logger.info('Route de test /hello appelée avec succès');
+});
 
 // POST /api/tasks - Créer une nouvelle tâche
 router.post('/', async (req, res) => {
