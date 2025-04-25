@@ -84,10 +84,12 @@ router.get('/check', (req, res) => {
     
     if (!authCookie && !bearerToken) {
       logger.debug('[SERVER:API:AUTH] Aucune information d\'authentification');
+      // IMPORTANT: Status 200 et authenticated: false
       return res.status(200).json({ authenticated: false });
     }
     
     logger.debug('[SERVER:API:AUTH] Authentification validée');
+    // IMPORTANT: Status 200 et authenticated: true
     res.status(200).json({ authenticated: true });
   } catch (error) {
     logger.error('[SERVER:API:AUTH] Erreur lors de la vérification:', error);
