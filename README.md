@@ -51,5 +51,5 @@ Le serveur écoute par défaut sur le port 3001. Vous pouvez modifier ce port en
 ## Logs
 
 Les logs sont stockés dans le dossier `logs/` :
-- `combined.log` - Tous les logs
+- `logs.log` - Tous les logs
 - `error.log` - Uniquement les erreurs
