@@ -23,11 +23,12 @@ router.post('/login', (req, res) => {
     // Authentification réussie
     logger.info('Authentification réussie');
     
-    // Définir un cookie d'authentification
+    // Définir un cookie d'authentification avec config CORS-friendly
     res.cookie(authConfig.cookieName, 'authenticated', {
       maxAge: authConfig.cookieMaxAge,
       httpOnly: true,
-      sameSite: 'lax'
+      sameSite: 'none',  // nécessaire pour CORS avec credentials
+      secure: true       // requis avec sameSite: 'none'
     });
     
     // Répondre avec succès

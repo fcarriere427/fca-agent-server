@@ -38,13 +38,16 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: 'unsafe-none' }
 }));
 
-// Configure CORS de manière très permissive
+// Configure CORS de manière spécifique pour l'extension Chrome
 app.use(cors({
-  origin: '*', // Autorise toutes les origines
+  origin: ['chrome-extension://geijajfenikceeemehghgabl61pbded1', 'http://localhost:3000', '*'], // ID de votre extension + développement
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
 }));
+
+// Middleware OPTIONS préflight pour s'assurer que les requêtes preflight passent
+app.options('*', cors());
 
 app.use(express.json({ limit: '10mb' })); // Permettre des requêtes JSON plus grandes pour les captures d'écran
 app.use(express.urlencoded({ extended: true }));
