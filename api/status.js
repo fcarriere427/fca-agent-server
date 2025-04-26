@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     // Vérifier la connexion à la base de données
     db.get('SELECT 1', (err) => {
       if (err) {
-        log.info('Erreur lors de la vérification de la base de données:', err);
+        log.warn('Erreur lors de la vérification de la base de données:', err);
         dbStatus = 'error';
       }
       
@@ -29,11 +29,12 @@ router.get('/', async (req, res) => {
         uptime: process.uptime(),
         database: dbStatus,
         claude_api: claudeStatus,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        debug: false  // Explicitement défini comme false
       });
     });
   } catch (error) {
-    log.info('Erreur lors de la vérification du statut:', error);
+    log.warn('Erreur lors de la vérification du statut:', error);
     res.status(500).json({
       status: 'error',
       error: error.message
