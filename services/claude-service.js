@@ -20,7 +20,7 @@ try {
   
   logger.info('[SERVER:SERVICES:CLAUDE-SERVICE] Initialisation du client Anthropic : OK');
 } catch (error) {
-  logger.error('Erreur lors de l\'initialisation du client Anthropic:', error);
+  logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors de l\'initialisation du client Anthropic:', error);
   // Initialiser un objet de secours pour éviter les erreurs null
   anthropic = {
     messages: {
@@ -37,7 +37,7 @@ const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307';
 // Fonction pour traiter un message utilisateur général
 async function processMessage(message) {
   try {
-    logger.info(`Traitement du message: "${message.substring(0, 50)}..."`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Traitement du message: "${message.substring(0, 50)}..."`);
     
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
@@ -48,14 +48,14 @@ async function processMessage(message) {
       temperature: 0.7,
     });
     
-    logger.info(`Réponse reçue: ${response.id}`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Réponse reçue: ${response.id}`);
     return {
       response: response.content[0].text,
       model: response.model,
       usage: response.usage
     };
   } catch (error) {
-    logger.error('Erreur lors du traitement du message:', error);
+    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors du traitement du message:', error);
     throw new Error(`Erreur API Claude: ${error.message}`);
   }
 }
@@ -64,7 +64,7 @@ async function processMessage(message) {
 // Fonction spécifique pour synthétiser les emails Gmail
 async function summarizeGmailEmails(emails, searchQuery = '') {
   try {
-    logger.info(`Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
     
     const systemPrompt = `Vous êtes un assistant professionnel qui synthétise efficacement les emails Gmail.
     Je vais vous fournir plusieurs emails extraits de Gmail et vous devrez:
@@ -115,12 +115,12 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
       temperature: 0.3,
     });
     
-    logger.info(`Synthèse des emails Gmail générée: ${response.id}`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Synthèse des emails Gmail générée: ${response.id}`);
     // Vérifier le contenu de la réponse
     const responseText = response.content[0].text;
-    logger.info(`Longueur de la réponse: ${responseText.length} caractères`);
-    logger.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
-    logger.info(`Réponse complète: ${responseText}`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Longueur de la réponse: ${responseText.length} caractères`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Début de la réponse: ${responseText.substring(0, 100)}...`);
+    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Réponse complète: ${responseText}`);
     
     // Assainir la réponse pour éviter les problèmes de sérialisation JSON
     // Remplacer les caractères problématiques par des espaces
@@ -135,7 +135,7 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
       usage: response.usage
     };
   } catch (error) {
-    logger.error('Erreur lors de la synthèse des emails Gmail:', error);
+    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors de la synthèse des emails Gmail:', error);
     throw new Error(`Erreur API Claude: ${error.message}`);
   }
 }

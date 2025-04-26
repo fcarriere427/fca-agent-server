@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
     // Vérifier la connexion à la base de données
     db.get('SELECT 1', (err) => {
       if (err) {
-        logger.error('[SERVER:API:STATUS] Erreur lors de la vérification de la base de données:', err);
+        logger.info('[SERVER:API:STATUS] Erreur lors de la vérification de la base de données:', err);
         dbStatus = 'error';
       }
       
@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
       });
     });
   } catch (error) {
-    logger.error('[SERVER:API:STATUS] Erreur lors de la vérification du statut:', error);
+    logger.info('[SERVER:API:STATUS] Erreur lors de la vérification du statut:', error);
     res.status(500).json({
       status: 'error',
       error: error.message
