@@ -204,15 +204,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// Route simple pour tester la communication
-router.get('/hello', (req, res) => {
-  console.log('Route /hello appelée');
-  res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.send('Hello World from FCA-Agent server');
-});
+// Remarque: Route de test déjà définie plus haut dans le fichier
 
 // GET /api/tasks/:id - Obtenir les détails d'une tâche
 router.get('/:id', (req, res) => {

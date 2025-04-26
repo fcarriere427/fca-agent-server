@@ -72,9 +72,44 @@ app.use('/api/tasks', tasksRoutes.router);
 jsonpRoutes.initializeCache(tasksRoutes.responseCache);
 app.use('/api/jsonp', jsonpRoutes.router);
 
+// Capturer toutes les autres routes API inexistantes
+app.use('/api/*', (req, res) => {
+  logger.warn(`[SERVER:INDEX] Route API inexistante: ${req.originalUrl}`);
+  res.status(404).json({
+    error: {
+      message: 'Route API non trouvée',
+      path: req.originalUrl
+    }
+  });
+});
+
+// Capturer toutes les autres requêtes
+app.use('*', (req, res) => {
+  logger.warn(`[SERVER:INDEX] Route inexistante: ${req.originalUrl}`);
+  res.status(404).json({
+    error: {
+      message: 'Ressource non trouvée',
+      path: req.originalUrl
+    }
+  });
+});
+
 // Gestion des erreurs
 app.use((err, req, res, next) => {
+  // Journalisation détaillée de l'erreur
   logger.error(`[SERVER:INDEX] ${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  
+  // Gestion spécifique des erreurs de routing (path-to-regexp)
+  if (err.message && (err.message.includes('pathToRegexpError') || err.message.includes('Missing parameter'))) {
+    logger.error('[SERVER:INDEX] Erreur de routing détectée:', err);
+    return res.status(400).json({
+      error: {
+        message: 'Erreur de routage: URL invalide',
+        detail: 'L\'URL demandée contient des caractères ou un format incompatible avec le routeur.'
+      }
+    });
+  }
+  
   res.status(err.status || 500).json({
     error: {
       message: err.message || 'Une erreur interne est survenue'
