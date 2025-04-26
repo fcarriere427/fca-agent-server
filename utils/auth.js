@@ -1,12 +1,13 @@
-// Middleware d'authentification simplifié
+// Middleware d'authentification simplifié (version renforcée)
 const { logger } = require('./logger');
 const authConfig = require('./auth-config');
 
 /**
- * Middleware qui vérifie si l'utilisateur est authentifié via un cookie
+ * Middleware qui vérifie si l'utilisateur est authentifié via un token Bearer
  */
 const simpleAuthMiddleware = (req, res, next) => {
-  logger.info('[SERVER:UTILS:AUTH] Vérification de l\'authentification pour ' + req.originalUrl);
+  const reqPath = req.originalUrl;
+  logger.info(`[SERVER:UTILS:AUTH] Vérification de l\'authentification pour ${reqPath}`);
   
   try {
     // Vérifier uniquement l'en-tête d'autorisation Bearer
@@ -32,11 +33,12 @@ const simpleAuthMiddleware = (req, res, next) => {
       });
     }
     
-    // Si le cookie ou le token existe, l'utilisateur est authentifié
+    // Si le token existe, l'utilisateur est authentifié
     logger.info('[SERVER:UTILS:AUTH] Authentification validée');
     next();
   } catch (error) {
-    logger.error('[SERVER:UTILS:AUTH] Erreur dans le middleware:', error);
+    logger.error(`[SERVER:UTILS:AUTH] Erreur dans le middleware: ${error.message}`);
+    logger.error(`[SERVER:UTILS:AUTH] Stack: ${error.stack}`);
     return res.status(401).json({ 
       authenticated: false, 
       message: 'Erreur d\'authentification',
