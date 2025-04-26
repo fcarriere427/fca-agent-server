@@ -1,6 +1,4 @@
 // FCA-Agent - Serveur principal
-// Suppression de l'avertissement de dépréciation pour punycode
-process.noDeprecation = true;
 
 require('dotenv').config();
 const express = require('express');
