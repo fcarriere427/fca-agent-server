@@ -40,7 +40,7 @@ app.use(helmet({
 
 // Configure CORS de manière spécifique pour l'extension Chrome
 app.use(cors({
-  origin: ['chrome-extension://geijajfenikceeemehghgabl61pbded1', 'http://localhost:3000', '*'], // ID de votre extension + développement
+  origin: ['chrome-extension://geijajfenikceeemehghgabl61pbded1', 'http://localhost:3001', '*'], // ID de votre extension + développement
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']

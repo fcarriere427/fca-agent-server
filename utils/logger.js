@@ -1,20 +1,10 @@
 // FCA-Agent - Configuration du logger
 const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
 
 // Format personnalisé
 const logFormat = winston.format.printf(({ level, message, timestamp }) => {
   return `${timestamp} ${level.toUpperCase()}: ${message}`;
 });
-
-// Répertoire des logs
-const logsDir = path.join(__dirname, '../logs');
-
-// S'assurer que le répertoire des logs existe
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir);
-}
 
 // Configuration du logger
 const logger = winston.createLogger({
@@ -25,35 +15,23 @@ const logger = winston.createLogger({
     logFormat
   ),
   transports: [
-    // Console pour le développement
+    // Console seulement - le service s'occupera de rediriger vers les fichiers
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         logFormat
       )
-    }),
-    // Fichier pour la persistance des erreurs
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Fichier pour tous les logs
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'logs.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Fichier pour les réponses spécifiques
-    new winston.transports.File({
-      filename: path.join(logsDir, 'responses.log'),
-      level: 'info',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
     })
   ]
 });
+
+// Messages d'erreur sur stderr, autres sur stdout
+const originalError = logger.error;
+logger.error = function (message, ...args) {
+  // Rediriger les erreurs vers stderr
+  console.error(`${new Date().toISOString()} ERROR: ${message}`);
+  return originalError.call(this, message, ...args);
+};
 
 // Fonctions de log spécifiques pour les réponses
 const logResponseCache = (responseId, length) => {
