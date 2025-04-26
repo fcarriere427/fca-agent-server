@@ -12,7 +12,7 @@ const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const { setupDatabase } = require('./db/setup');
 const { logger } = require('./utils/logger');
-const simpleAuthMiddleware = require('./middleware/simple-auth');
+const simpleAuthMiddleware = require('./utils/auth');
 
 // Routes
 const statusRoutes = require('./api/status');

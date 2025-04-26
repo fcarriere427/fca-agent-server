@@ -1,16 +1,16 @@
 // FCA-Agent - Routes pour les tâches
 const express = require('express');
 const router = express.Router();
-const { logger } = require('../utils/logger');
-const { getDb } = require('../db/setup');
-const claudeService = require('../services/claude-service');
-const authMiddleware = require('../middleware/simple-auth');
 const { 
+  logger,
   logResponseCache, 
   logResponseSent, 
   logResponseRequest,
   logClaudeResponse 
-} = require('../middleware/response-logger');
+} = require('../utils/logger');
+const { getDb } = require('../db/setup');
+const claudeService = require('../services/claude-service');
+const authMiddleware = require('../utils/auth');
 
 // Stockage temporaire des réponses complètes
 const responseCache = {};
