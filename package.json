@@ -4,8 +4,8 @@
   "description": "Serveur pour FCA-Agent, un assistant IA personnel",
   "main": "index.js",
   "scripts": {
-    "start": "node --no-warnings=DEP0040 index.js",
-    "dev": "nodemon --no-warnings=DEP0040 index.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
