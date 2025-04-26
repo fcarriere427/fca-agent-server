@@ -1,7 +1,7 @@
 // FCA-Agent - Configuration de base de données simplifiée
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const { logger, createModuleLogger } = require('../utils/logger');
+const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:DB:SETUP';
 const log = createModuleLogger(MODULE_NAME);
 

@@ -1,7 +1,7 @@
 // FCA-Agent - Routes JSONP pour une communication plus simple
 const express = require('express');
 const router = express.Router();
-const { logger, createModuleLogger } = require('../utils/logger');
+const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:JSONP';
 const log = createModuleLogger(MODULE_NAME);
 

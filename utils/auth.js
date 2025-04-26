@@ -1,5 +1,5 @@
 // Middleware d'authentification simplifié (version renforcée)
-const { logger, createModuleLogger } = require('./logger');
+const { createModuleLogger } = require('./logger');
 const MODULE_NAME = 'SERVER:UTILS:AUTH';
 const log = createModuleLogger(MODULE_NAME);
 const authConfig = require('./auth-config');

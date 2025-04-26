@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  logger,
   createModuleLogger,
   logResponseCache, 
   logResponseSent, 
@@ -69,17 +68,8 @@ router.post('/', async (req, res) => {
             case 'processUserInput':
               result = await claudeService.processMessage(data.input);
               break;
-            case 'email-summary':
-              result = await claudeService.summarizeEmails(data.prompt);
-              break;
             case 'gmail-summary':
               result = await claudeService.summarizeGmailEmails(data.emails, data.searchQuery);
-              break;
-            case 'teams-summary':
-              result = await claudeService.summarizeTeams(data.prompt);
-              break;
-            case 'draft-email':
-              result = await claudeService.draftEmail(data.prompt);
               break;
             default:
               result = { error: 'Type de tâche non pris en charge' };

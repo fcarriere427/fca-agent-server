@@ -1,7 +1,7 @@
 // FCA-Agent - Routes pour le statut du serveur
 const express = require('express');
 const router = express.Router();
-const { logger, createModuleLogger } = require('../utils/logger');
+const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:STATUS';
 const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');

@@ -1,7 +1,7 @@
 // FCA-Agent - Routes pour l'authentification simplifiée
 const express = require('express');
 const router = express.Router();
-const { logger, createModuleLogger } = require('../utils/logger');
+const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:AUTH';
 const log = createModuleLogger(MODULE_NAME);
 const authConfig = require('../utils/auth-config');
