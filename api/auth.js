@@ -29,13 +29,7 @@ router.post('/login', (req, res) => {
     // Générer un token unique
     const token = `srv_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Définir un cookie d'authentification avec config CORS-friendly
-    res.cookie(authConfig.cookieName, token, {
-      maxAge: authConfig.cookieMaxAge,
-      httpOnly: true,
-      sameSite: 'none',  // nécessaire pour CORS avec credentials
-      secure: true       // requis avec sameSite: 'none'
-    });
+        // Plus de cookie - uniquement authentification par token
     
     // Inclure le token dans la réponse pour les clients qui ne supportent pas les cookies
     res.status(200).json({ 
@@ -54,8 +48,8 @@ router.post('/logout', (req, res) => {
   logger.info('[SERVER:API:AUTH] Tentative de déconnexion');
   
   try {
-    // Supprimer le cookie d'authentification
-    res.clearCookie(authConfig.cookieName);
+    // La déconnexion est gérée côté client (révocation du token)
+    // Le serveur ne conserve plus d'état (cookie)
     
     logger.info('[SERVER:API:AUTH] Déconnexion réussie');
     res.status(200).json({ success: true, message: 'Déconnecté avec succès' });
@@ -70,19 +64,16 @@ router.get('/check', (req, res) => {
   logger.info('[SERVER:API:AUTH] Vérification d\'authentification');
   
   try {
-    // Vérifier le cookie d'authentification
-    const authCookie = req.cookies[authConfig.cookieName];
-    
-    // Vérifier aussi l'en-tête d'autorisation Bearer
+    // Vérifier uniquement l'en-tête d'autorisation Bearer
     const authHeader = req.headers.authorization;
     const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
                       ? authHeader.substring(7) 
                       : null;
     
     // Log détaillé des informations d'authentification
-    logger.info(`[SERVER:API:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
+    logger.info(`[SERVER:API:AUTH] Bearer token: ${bearerToken ? 'présent' : 'absent'}`);
     
-    if (!authCookie && !bearerToken) {
+    if (!bearerToken) {
       logger.info('[SERVER:API:AUTH] Aucune information d\'authentification');
       // IMPORTANT: Status 200 et authenticated: false
       return res.status(200).json({ authenticated: false });

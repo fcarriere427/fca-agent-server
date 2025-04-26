@@ -9,25 +9,22 @@ const simpleAuthMiddleware = (req, res, next) => {
   logger.info('[SERVER:UTILS:AUTH] Vérification de l\'authentification pour ' + req.originalUrl);
   
   try {
-    // Vérifier si le cookie d'authentification existe
-    const authCookie = req.cookies[authConfig.cookieName];
-    
-    // Vérifier aussi l'en-tête d'autorisation Bearer (pour compatibilité avec les clients)
+    // Vérifier uniquement l'en-tête d'autorisation Bearer
     const authHeader = req.headers.authorization;
     const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
                       ? authHeader.substring(7) 
                       : null;
     
     // Log des informations d'authentification
-    logger.info(`[SERVER:UTILS:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
+    logger.info(`[SERVER:UTILS:AUTH] Bearer token: ${bearerToken ? 'présent' : 'absent'}`);
     
-    // Si aucun cookie ni token n'est trouvé, retourner un statut 401 Unauthorized
-    if (!authCookie && !bearerToken) {
+    // Si aucun token n'est trouvé, retourner un statut 401 Unauthorized
+    if (!bearerToken) {
       logger.info('[SERVER:UTILS:AUTH] Accès refusé: aucune information d\'authentification');
       return res.status(401).json({ 
         authenticated: false, 
         message: 'Authentification requise',
-        detail: 'Aucun cookie ni token fourni'
+        detail: 'Aucun token Bearer fourni'
       });
     }
     
