@@ -6,7 +6,7 @@ const authConfig = require('../utils/auth-config');
 
 // POST /api/auth/login - Connexion utilisateur simplifiée
 router.post('/login', (req, res) => {
-  logger.debug('[SERVER:API:AUTH] Tentative de connexion');
+  logger.info('[SERVER:API:AUTH] Tentative de connexion');
   
   try {
     const { password } = req.body;
@@ -51,7 +51,7 @@ router.post('/login', (req, res) => {
 
 // POST /api/auth/logout - Déconnexion
 router.post('/logout', (req, res) => {
-  logger.debug('[SERVER:API:AUTH] Tentative de déconnexion');
+  logger.info('[SERVER:API:AUTH] Tentative de déconnexion');
   
   try {
     // Supprimer le cookie d'authentification
@@ -67,7 +67,7 @@ router.post('/logout', (req, res) => {
 
 // GET /api/auth/check - Vérifier si l'utilisateur est authentifié
 router.get('/check', (req, res) => {
-  logger.debug('[SERVER:API:AUTH] Vérification d\'authentification');
+  logger.info('[SERVER:API:AUTH] Vérification d\'authentification');
   
   try {
     // Vérifier le cookie d'authentification
@@ -80,15 +80,15 @@ router.get('/check', (req, res) => {
                       : null;
     
     // Log détaillé des informations d'authentification
-    logger.debug(`[SERVER:API:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
+    logger.info(`[SERVER:API:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
     
     if (!authCookie && !bearerToken) {
-      logger.debug('[SERVER:API:AUTH] Aucune information d\'authentification');
+      logger.info('[SERVER:API:AUTH] Aucune information d\'authentification');
       // IMPORTANT: Status 200 et authenticated: false
       return res.status(200).json({ authenticated: false });
     }
     
-    logger.debug('[SERVER:API:AUTH] Authentification validée');
+    logger.info('[SERVER:API:AUTH] Authentification validée');
     // IMPORTANT: Status 200 et authenticated: true
     res.status(200).json({ authenticated: true });
   } catch (error) {
