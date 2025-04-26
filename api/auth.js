@@ -26,10 +26,13 @@ router.post('/login', (req, res) => {
     // Authentification réussie
     logger.info('[SERVER:API:AUTH] Authentification réussie');
     
-    // Générer un token unique
-    const token = `srv_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    // Générer un token unique avec un format facilement identifiable
+    const token = `srv_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
-        // Plus de cookie - uniquement authentification par token
+    // Log du token pour débogage (premiers et derniers caractères seulement)
+    logger.info(`[SERVER:API:AUTH] Token généré: ${token.substring(0, 5)}...${token.substring(token.length-5)}`);
+    
+    // Plus de cookie - uniquement authentification par token
     
     // Inclure le token dans la réponse pour les clients qui ne supportent pas les cookies
     res.status(200).json({ 
@@ -64,16 +67,16 @@ router.get('/check', (req, res) => {
   logger.info('[SERVER:API:AUTH] Vérification d\'authentification');
   
   try {
-    // Vérifier uniquement l'en-tête d'autorisation Bearer
-    const authHeader = req.headers.authorization;
-    const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
-                      ? authHeader.substring(7) 
-                      : null;
-    
-    // Log détaillé des informations d'authentification
-    logger.info(`[SERVER:API:AUTH] Bearer token: ${bearerToken ? 'présent' : 'absent'}`);
-    
-    if (!bearerToken) {
+  // Extraire le token from l'en-tête d'autorisation
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
+  ? authHeader.substring(7) 
+  : null;
+  
+  // Log détaillé des informations d'authentification
+  logger.info(`[SERVER:API:AUTH] Bearer token: ${bearerToken ? bearerToken.substring(0, 5) + '...' + bearerToken.substring(bearerToken.length-5) : 'absent'}`);
+  
+  if (!bearerToken) {
       logger.info('[SERVER:API:AUTH] Aucune information d\'authentification');
       // IMPORTANT: Status 200 et authenticated: false
       return res.status(200).json({ authenticated: false });

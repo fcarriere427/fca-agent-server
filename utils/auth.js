@@ -15,8 +15,12 @@ const simpleAuthMiddleware = (req, res, next) => {
                       ? authHeader.substring(7) 
                       : null;
     
-    // Log des informations d'authentification
-    logger.info(`[SERVER:UTILS:AUTH] Bearer token: ${bearerToken ? 'présent' : 'absent'}`);
+    // Log des informations d'authentification plus détaillées
+    if (bearerToken) {
+      logger.info(`[SERVER:UTILS:AUTH] Bearer token présent: ${bearerToken.substring(0, 5)}...${bearerToken.substring(bearerToken.length-5)}`);
+    } else {
+      logger.info('[SERVER:UTILS:AUTH] Bearer token: absent');
+    }
     
     // Si aucun token n'est trouvé, retourner un statut 401 Unauthorized
     if (!bearerToken) {
