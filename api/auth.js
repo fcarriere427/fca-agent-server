@@ -1,14 +1,13 @@
-// FCA-Agent - Routes pour l'authentification simplifiée
+// FCA-Agent - Routes pour l'authentification simplifiée par clé API fixe
 const express = require('express');
 const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:AUTH';
 const log = createModuleLogger(MODULE_NAME);
-const authConfig = require('../utils/auth-config');
 
-// POST /api/auth/login - Connexion utilisateur simplifiée
+// GET /api/auth/key - Récupérer la clé API (maintenu pour compatibilité avec l'ancienne extension)
 router.post('/login', (req, res) => {
-  log.info('Tentative de connexion');
+  log.info('Tentative de connexion avec l\'ancien système');
   
   try {
     const { password } = req.body;
@@ -19,28 +18,26 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Mot de passe requis' });
     }
     
-    // Vérification du mot de passe
-    if (password !== authConfig.password) {
+    // Vérification du mot de passe (pour rétrocompatibilité)
+    if (password !== process.env.AUTH_PASSWORD) {
       log.warn('Tentative avec mot de passe incorrect');
       return res.status(401).json({ error: 'Mot de passe incorrect' });
     }
     
     // Authentification réussie
-    log.info('Authentification réussie');
+    log.info('Authentification réussie - distribution de la clé API fixe');
     
-    // Générer un token unique avec un format facilement identifiable
-    const token = `srv_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    // Utiliser la clé API fixe comme token
+    const apiKey = process.env.API_KEY;
     
-    // Log du token pour débogage (premiers et derniers caractères seulement)
-    log.info(`Token généré: ${token.substring(0, 5)}...${token.substring(token.length-5)}`);
+    // Log de la clé API pour débogage (premiers et derniers caractères seulement)
+    log.info(`API Key: ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length-5)}`);
     
-    // Plus de cookie - uniquement authentification par token
-    
-    // Inclure le token dans la réponse pour les clients qui ne supportent pas les cookies
+    // Renvoyer la clé API fixe à l'extension
     res.status(200).json({ 
       success: true, 
       message: 'Authentification réussie',
-      token: token
+      token: apiKey // Utiliser la clé API comme token pour rétrocompatibilité
     });
   } catch (error) {
     log.error('Erreur lors de l\'authentification:', error);
@@ -48,43 +45,45 @@ router.post('/login', (req, res) => {
   }
 });
 
-// POST /api/auth/logout - Déconnexion
+// POST /api/auth/logout - Déconnexion (conservé pour compatibilité)
 router.post('/logout', (req, res) => {
-  log.info('Tentative de déconnexion');
+  log.info('Tentative de déconnexion (opération simulue avec clé API fixe)');
   
-  try {
-    // La déconnexion est gérée côté client (révocation du token)
-    // Le serveur ne conserve plus d'état (cookie)
-    
-    log.info('Déconnexion réussie');
-    res.status(200).json({ success: true, message: 'Déconnecté avec succès' });
-  } catch (error) {
-    log.error('Erreur lors de la déconnexion:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
+  // Avec une clé API fixe, pas besoin de réellement faire quoi que ce soit
+  res.status(200).json({ 
+    success: true, 
+    message: 'Déconnecté avec succès' 
+  });
 });
 
-// GET /api/auth/check - Vérifier si l'utilisateur est authentifié
+// GET /api/auth/check - Vérifier si la clé API est valide
 router.get('/check', (req, res) => {
-  log.info('Vérification d\'authentification');
+  log.info('Vérification de la clé API');
   
   try {
-  // Extraire le token from l'en-tête d'autorisation
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
-  ? authHeader.substring(7) 
-  : null;
-  
-  // Log détaillé des informations d'authentification
-  log.info(`Bearer token: ${bearerToken ? bearerToken.substring(0, 5) + '...' + bearerToken.substring(bearerToken.length-5) : 'absent'}`);
-  
-  if (!bearerToken) {
-      log.info('Aucune information d\'authentification');
+    // Récupérer la clé API du fichier .env
+    const apiKey = process.env.API_KEY;
+    
+    // Vérifier l'en-tête API-Key ou Authorization (pour compatibilité)
+    const requestApiKey = req.headers['api-key'] || 
+                          (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                            ? req.headers.authorization.substring(7) 
+                            : null);
+    
+    // Log détaillé des informations d'authentification
+    if (requestApiKey) {
+      log.info(`API Key: ${requestApiKey.substring(0, 5)}...${requestApiKey.substring(requestApiKey.length-5)}`);
+    } else {
+      log.info('API Key: absente');
+    }
+    
+    if (!requestApiKey || requestApiKey !== apiKey) {
+      log.info('Clé API invalide ou absente');
       // IMPORTANT: Status 200 et authenticated: false
       return res.status(200).json({ authenticated: false });
     }
     
-    log.info('Authentification validée');
+    log.info('Clé API valide');
     // IMPORTANT: Status 200 et authenticated: true
     res.status(200).json({ authenticated: true });
   } catch (error) {

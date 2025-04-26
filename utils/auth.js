@@ -1,41 +1,43 @@
-// Middleware d'authentification simplifié (version renforcée)
+// Middleware d'authentification simplifiée par clé API fixe
 const { createModuleLogger } = require('./logger');
 const MODULE_NAME = 'SERVER:UTILS:AUTH';
 const log = createModuleLogger(MODULE_NAME);
-const authConfig = require('./auth-config');
 
 /**
- * Middleware qui vérifie si l'utilisateur est authentifié via un token Bearer
+ * Middleware qui vérifie si la requête contient la clé API valide
  */
 const simpleAuthMiddleware = (req, res, next) => {
   const reqPath = req.originalUrl;
   log.info(`Vérification de l\'authentification pour ${reqPath}`);
   
   try {
-    // Vérifier uniquement l'en-tête d'autorisation Bearer
-    const authHeader = req.headers.authorization;
-    const bearerToken = authHeader && authHeader.startsWith('Bearer ') 
-                      ? authHeader.substring(7) 
-                      : null;
+    // Récupérer la clé API du fichier .env
+    const apiKey = process.env.API_KEY;
     
-    // Log des informations d'authentification plus détaillées
-    if (bearerToken) {
-      log.info(`Bearer token présent: ${bearerToken.substring(0, 5)}...${bearerToken.substring(bearerToken.length-5)}`);
+    // Vérifier l'en-tête API-Key ou Authorization (pour compatibilité)
+    const requestApiKey = req.headers['api-key'] || 
+                        (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                          ? req.headers.authorization.substring(7) 
+                          : null);
+    
+    // Log des informations d'authentification
+    if (requestApiKey) {
+      log.info(`API Key présente: ${requestApiKey.substring(0, 5)}...${requestApiKey.substring(requestApiKey.length-5)}`);
     } else {
-      log.info('Bearer token: absent');
+      log.info('API Key: absente');
     }
     
-    // Si aucun token n'est trouvé, retourner un statut 401 Unauthorized
-    if (!bearerToken) {
-      log.info('Accès refusé: aucune information d\'authentification');
+    // Si aucune clé n'est trouvée ou si elle ne correspond pas
+    if (!requestApiKey || requestApiKey !== apiKey) {
+      log.info('Accès refusé: clé API invalide ou absente');
       return res.status(401).json({ 
         authenticated: false, 
         message: 'Authentification requise',
-        detail: 'Aucun token Bearer fourni'
+        detail: 'Clé API invalide ou absente'
       });
     }
     
-    // Si le token existe, l'utilisateur est authentifié
+    // Si la clé correspond, l'accès est autorisé
     log.info('Authentification validée');
     next();
   } catch (error) {
