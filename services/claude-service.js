@@ -1,6 +1,8 @@
 // FCA-Agent - Service d'interaction avec l'API Claude d'Anthropic
 const { Anthropic } = require('@anthropic-ai/sdk');
-const { logger } = require('../utils/logger');
+const { logger, createModuleLogger } = require('../utils/logger');
+const MODULE_NAME = 'SERVER:SERVICES:CLAUDE-SERVICE';
+const log = createModuleLogger(MODULE_NAME);
 
 // Initialisation du client Anthropic avec vérification
 const apiKey = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_KEY';
@@ -9,7 +11,7 @@ let anthropic;
 try {
   // Vérification de la clé API
   if (apiKey === 'PLACEHOLDER_KEY' || apiKey === 'your_anthropic_api_key_here') {
-    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Clé API Anthropic non configurée correctement dans .env');
+    log.error('Clé API Anthropic non configurée correctement dans .env');
     throw new Error('Clé API Anthropic non configurée');
   }
   
@@ -18,9 +20,9 @@ try {
     apiKey: apiKey,
   });
   
-  logger.info('[SERVER:SERVICES:CLAUDE-SERVICE] Initialisation du client Anthropic : OK');
+  log.info('Initialisation du client Anthropic : OK');
 } catch (error) {
-  logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors de l\'initialisation du client Anthropic:', error);
+  log.error('Erreur lors de l\'initialisation du client Anthropic:', error);
   // Initialiser un objet de secours pour éviter les erreurs null
   anthropic = {
     messages: {
@@ -37,7 +39,7 @@ const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307';
 // Fonction pour traiter un message utilisateur général
 async function processMessage(message) {
   try {
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Traitement du message: "${message.substring(0, 50)}..."`);
+    log.info(`Traitement du message: "${message.substring(0, 50)}..."`)
     
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
@@ -48,14 +50,14 @@ async function processMessage(message) {
       temperature: 0.7,
     });
     
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Réponse reçue: ${response.id}`);
+    log.info(`Réponse reçue: ${response.id}`);
     return {
       response: response.content[0].text,
       model: response.model,
       usage: response.usage
     };
   } catch (error) {
-    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors du traitement du message:', error);
+    log.error('Erreur lors du traitement du message:', error);
     throw new Error(`Erreur API Claude: ${error.message}`);
   }
 }
@@ -64,7 +66,7 @@ async function processMessage(message) {
 // Fonction spécifique pour synthétiser les emails Gmail
 async function summarizeGmailEmails(emails, searchQuery = '') {
   try {
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
+    log.info(`Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
     
     const systemPrompt = `Vous êtes un assistant professionnel qui synthétise efficacement les emails Gmail.
     Je vais vous fournir plusieurs emails extraits de Gmail et vous devrez:
@@ -115,12 +117,12 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
       temperature: 0.3,
     });
     
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Synthèse des emails Gmail générée: ${response.id}`);
+    log.info(`Synthèse des emails Gmail générée: ${response.id}`);
     // Vérifier le contenu de la réponse
     const responseText = response.content[0].text;
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Longueur de la réponse: ${responseText.length} caractères`);
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Début de la réponse: ${responseText.substring(0, 100)}...`);
-    logger.info(`[SERVER:SERVICES:CLAUDE-SERVICE] Réponse complète: ${responseText}`);
+    log.info(`Longueur de la réponse: ${responseText.length} caractères`);
+    log.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
+    log.info(`Réponse complète: ${responseText}`);
     
     // Assainir la réponse pour éviter les problèmes de sérialisation JSON
     // Remplacer les caractères problématiques par des espaces
@@ -135,7 +137,7 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
       usage: response.usage
     };
   } catch (error) {
-    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Erreur lors de la synthèse des emails Gmail:', error);
+    log.error('Erreur lors de la synthèse des emails Gmail:', error);
     throw new Error(`Erreur API Claude: ${error.message}`);
   }
 }

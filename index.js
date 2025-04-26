@@ -9,7 +9,9 @@ const path = require('path');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const { setupDatabase } = require('./db/setup');
-const { logger } = require('./utils/logger');
+const { logger, createModuleLogger } = require('./utils/logger');
+const MODULE_NAME = 'SERVER:INDEX';
+const log = createModuleLogger(MODULE_NAME);
 const simpleAuthMiddleware = require('./utils/auth');
 
 // Initialisation
@@ -20,7 +22,7 @@ const PORT = process.env.PORT || 3001;
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
-  logger.info(`[SERVER:INDEX] Répertoire créé: ${logsDir}`);
+  log.info(`Répertoire créé: ${logsDir}`);
 }
 
 // Configuration des middlewares
@@ -42,7 +44,7 @@ app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(morgan('dev', { stream: { write: message => logger.info(`[SERVER:INDEX] ${message.trim()}`) } }));
+app.use(morgan('dev', { stream: { write: message => log.info(`${message.trim()}`) } }));
 
 // Importation des routes
 const authRoutes = require('./api/auth');
@@ -74,7 +76,7 @@ app.use('/api/jsonp', jsonpRoutes.router);
 
 // Capturer toutes les autres routes API inexistantes
 app.use('/api/*', (req, res) => {
-  logger.warn(`[SERVER:INDEX] Route API inexistante: ${req.originalUrl}`);
+  log.warn(`Route API inexistante: ${req.originalUrl}`);
   res.status(404).json({
     error: {
       message: 'Route API non trouvée',
@@ -85,7 +87,7 @@ app.use('/api/*', (req, res) => {
 
 // Capturer toutes les autres requêtes
 app.use('*', (req, res) => {
-  logger.warn(`[SERVER:INDEX] Route inexistante: ${req.originalUrl}`);
+  log.warn(`Route inexistante: ${req.originalUrl}`);
   res.status(404).json({
     error: {
       message: 'Ressource non trouvée',
@@ -97,11 +99,11 @@ app.use('*', (req, res) => {
 // Gestion des erreurs
 app.use((err, req, res, next) => {
   // Journalisation détaillée de l'erreur
-  logger.error(`[SERVER:INDEX] ${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  log.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
   
   // Gestion spécifique des erreurs de routing (path-to-regexp)
   if (err.message && (err.message.includes('pathToRegexpError') || err.message.includes('Missing parameter'))) {
-    logger.error('[SERVER:INDEX] Erreur de routing détectée:', err);
+    log.error('Erreur de routing détectée:', err);
     return res.status(400).json({
       error: {
         message: 'Erreur de routage: URL invalide',
@@ -120,20 +122,20 @@ app.use((err, req, res, next) => {
 // Initialisation de la base de données et démarrage du serveur
 setupDatabase()
   .then(() => {
-    logger.info('[SERVER:INDEX] Base de données initialisée avec succès');
+    log.info('Base de données initialisée avec succès');
     app.listen(PORT, () => {
-      logger.info(`[SERVER:INDEX] Serveur FCA-Agent démarré sur le port ${PORT}`);
-      logger.info(`[SERVER:INDEX] Environnement: ${process.env.NODE_ENV || 'development'}`);
+      log.info(`Serveur FCA-Agent démarré sur le port ${PORT}`);
+      log.info(`Environnement: ${process.env.NODE_ENV || 'development'}`);
     });
   })
   .catch(err => {
-    logger.error('[SERVER:INDEX] Erreur lors de l\'initialisation de la base de données:', err);
+    log.error('Erreur lors de l\'initialisation de la base de données:', err);
     process.exit(1);
   });
 
 // Gestion de l'arrêt propre
 process.on('SIGINT', () => {
-  logger.info('[SERVER:INDEX] Arrêt du serveur FCA-Agent...');
+  log.info('Arrêt du serveur FCA-Agent...');
   process.exit(0);
 });
 

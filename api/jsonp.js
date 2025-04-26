@@ -1,7 +1,9 @@
 // FCA-Agent - Routes JSONP pour une communication plus simple
 const express = require('express');
 const router = express.Router();
-const { logger } = require('../utils/logger');
+const { logger, createModuleLogger } = require('../utils/logger');
+const MODULE_NAME = 'SERVER:API:JSONP';
+const log = createModuleLogger(MODULE_NAME);
 
 // Référence au cache de réponse (à récupérer depuis tasks.js)
 let responseCache = {};
@@ -9,7 +11,7 @@ let responseCache = {};
 // Initialiser le cache en référence à celui de tasks.js
 const initializeCache = (cache) => {
   responseCache = cache;
-  logger.info('[SERVER:API:JSONP] Initalisation du cache JSONP : OK');
+  log.info('Initalisation du cache JSONP : OK');
 };
 
 // GET /api/jsonp/response/:id - Récupérer une réponse cachée par ID en format JSONP
@@ -18,16 +20,16 @@ router.get('/response/:id', (req, res) => {
     const responseId = req.params.id;
     const callback = req.query.callback || 'handleResponse'; // Fonction callback côté client
     
-    logger.info(`[SERVER:API:JSONP] Requête de réponse reçue pour ID: ${responseId}, callback: ${callback}`);
+    log.info(`Requête de réponse reçue pour ID: ${responseId}, callback: ${callback}`);
     
     // Log du contenu actuel du cache
     const cacheKeys = Object.keys(responseCache);
-    logger.info(`[SERVER:API:JSONP] Clés en cache: ${cacheKeys.join(', ')}`);
-    logger.info(`[SERVER:API:JSONP] Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
+    log.info(`Clés en cache: ${cacheKeys.join(', ')}`);
+    log.info(`Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
     
     // Vérifier si la réponse existe dans le cache
     if (!responseCache[responseId]) {
-      logger.error(`[SERVER:API:JSONP] Réponse non trouvée dans le cache: ${responseId}`);
+      log.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.send(`${callback}({"error": "Réponse non trouvée ou expirée"})`);
     }
     
@@ -41,15 +43,15 @@ router.get('/response/:id', (req, res) => {
       .replace(/\f/g, '\\f');  // Échapper les sauts de page
     
     // Log détaillé de la réponse avant envoi
-    logger.info(`[SERVER:API:JSONP] Envoi de réponse complète: ID=${responseId}, longueur=${response.length}`);
+    log.info(`Envoi de réponse complète: ID=${responseId}, longueur=${response.length}`);
     
     // Envoyer la réponse en format JSONP
     res.setHeader('Content-Type', 'application/javascript');
     res.send(`${callback}({"response": "${response}"})`);
     
-    logger.info(`[SERVER:API:JSONP] Réponse envoyée avec succès pour ${responseId}`);
+    log.info(`Réponse envoyée avec succès pour ${responseId}`);
   } catch (error) {
-    logger.error(`[SERVER:API:JSONP] Erreur lors de la récupération: ${error.message}`, error);
+    log.error(`Erreur lors de la récupération: ${error.message}`, error);
     const callback = req.query.callback || 'handleResponse';
     res.send(`${callback}({"error": "Erreur serveur: ${error.message}"})`);
   }
@@ -77,12 +79,14 @@ router.get('/direct-text/:id', (req, res) => {
     
     // Vérifier si la réponse existe dans le cache
     if (!responseCache[responseId]) {
-      logger.error(`[JSONP Direct] Réponse non trouvée dans le cache: ${responseId}`);
+      const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
+      directLogger.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.status(404).send('Réponse non trouvée ou expirée');
     }
     
     // Log détaillé de la réponse avant envoi
-    logger.info(`[JSONP Direct] Envoi de réponse directe: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
+    directLogger.info(`Envoi de réponse directe: ID=${responseId}, longueur=${responseCache[responseId].length}`);
     
     // Envoyer la réponse en format texte brut
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -90,9 +94,10 @@ router.get('/direct-text/:id', (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.send(responseCache[responseId]);
     
-    logger.info(`[JSONP Direct] Réponse directe envoyée avec succès pour ${responseId}`);
+    directLogger.info(`Réponse directe envoyée avec succès pour ${responseId}`);
   } catch (error) {
-    logger.error(`[JSONP Direct] Erreur lors de l'envoi direct: ${error.message}`, error);
+    const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
+    directLogger.error(`Erreur lors de l'envoi direct: ${error.message}`, error);
     res.status(500).send(`Erreur serveur: ${error.message}`);
   }
 });
@@ -104,12 +109,14 @@ router.get('/iframe/:id', (req, res) => {
     
     // Vérifier si la réponse existe dans le cache
     if (!responseCache[responseId]) {
-      logger.error(`[JSONP Iframe] Réponse non trouvée dans le cache: ${responseId}`);
+      const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
+      iframeLogger.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.status(404).send('Réponse non trouvée ou expirée');
     }
     
     // Log détaillé de la réponse avant envoi
-    logger.info(`[JSONP Iframe] Envoi de réponse HTML: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
+    iframeLogger.info(`Envoi de réponse HTML: ID=${responseId}, longueur=${responseCache[responseId].length}`);
     
     // Créer une page HTML simple avec la réponse
     const htmlResponse = `
@@ -147,9 +154,10 @@ router.get('/iframe/:id', (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(htmlResponse);
     
-    logger.info(`[JSONP Iframe] Réponse HTML envoyée avec succès pour ${responseId}`);
+    iframeLogger.info(`Réponse HTML envoyée avec succès pour ${responseId}`);
   } catch (error) {
-    logger.error(`[JSONP Iframe] Erreur lors de l'envoi HTML: ${error.message}`, error);
+    const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
+    iframeLogger.error(`Erreur lors de l'envoi HTML: ${error.message}`, error);
     res.status(500).send(`<html><body><h1>Erreur serveur</h1><p>${error.message}</p></body></html>`);
   }
 });

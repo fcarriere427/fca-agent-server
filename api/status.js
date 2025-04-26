@@ -1,7 +1,9 @@
 // FCA-Agent - Routes pour le statut du serveur
 const express = require('express');
 const router = express.Router();
-const { logger } = require('../utils/logger');
+const { logger, createModuleLogger } = require('../utils/logger');
+const MODULE_NAME = 'SERVER:API:STATUS';
+const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
 
 // GET /api/status - Vérifier l'état du serveur
@@ -13,7 +15,7 @@ router.get('/', async (req, res) => {
     // Vérifier la connexion à la base de données
     db.get('SELECT 1', (err) => {
       if (err) {
-        logger.info('[SERVER:API:STATUS] Erreur lors de la vérification de la base de données:', err);
+        log.info('Erreur lors de la vérification de la base de données:', err);
         dbStatus = 'error';
       }
       
@@ -31,7 +33,7 @@ router.get('/', async (req, res) => {
       });
     });
   } catch (error) {
-    logger.info('[SERVER:API:STATUS] Erreur lors de la vérification du statut:', error);
+    log.info('Erreur lors de la vérification du statut:', error);
     res.status(500).json({
       status: 'error',
       error: error.message

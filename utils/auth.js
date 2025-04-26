@@ -1,5 +1,7 @@
 // Middleware d'authentification simplifié (version renforcée)
-const { logger } = require('./logger');
+const { logger, createModuleLogger } = require('./logger');
+const MODULE_NAME = 'SERVER:UTILS:AUTH';
+const log = createModuleLogger(MODULE_NAME);
 const authConfig = require('./auth-config');
 
 /**
@@ -7,7 +9,7 @@ const authConfig = require('./auth-config');
  */
 const simpleAuthMiddleware = (req, res, next) => {
   const reqPath = req.originalUrl;
-  logger.info(`[SERVER:UTILS:AUTH] Vérification de l\'authentification pour ${reqPath}`);
+  log.info(`Vérification de l\'authentification pour ${reqPath}`);
   
   try {
     // Vérifier uniquement l'en-tête d'autorisation Bearer
@@ -18,14 +20,14 @@ const simpleAuthMiddleware = (req, res, next) => {
     
     // Log des informations d'authentification plus détaillées
     if (bearerToken) {
-      logger.info(`[SERVER:UTILS:AUTH] Bearer token présent: ${bearerToken.substring(0, 5)}...${bearerToken.substring(bearerToken.length-5)}`);
+      log.info(`Bearer token présent: ${bearerToken.substring(0, 5)}...${bearerToken.substring(bearerToken.length-5)}`);
     } else {
-      logger.info('[SERVER:UTILS:AUTH] Bearer token: absent');
+      log.info('Bearer token: absent');
     }
     
     // Si aucun token n'est trouvé, retourner un statut 401 Unauthorized
     if (!bearerToken) {
-      logger.info('[SERVER:UTILS:AUTH] Accès refusé: aucune information d\'authentification');
+      log.info('Accès refusé: aucune information d\'authentification');
       return res.status(401).json({ 
         authenticated: false, 
         message: 'Authentification requise',
@@ -34,11 +36,11 @@ const simpleAuthMiddleware = (req, res, next) => {
     }
     
     // Si le token existe, l'utilisateur est authentifié
-    logger.info('[SERVER:UTILS:AUTH] Authentification validée');
+    log.info('Authentification validée');
     next();
   } catch (error) {
-    logger.error(`[SERVER:UTILS:AUTH] Erreur dans le middleware: ${error.message}`);
-    logger.error(`[SERVER:UTILS:AUTH] Stack: ${error.stack}`);
+    log.error(`Erreur dans le middleware: ${error.message}`);
+    log.error(`Stack: ${error.stack}`);
     return res.status(401).json({ 
       authenticated: false, 
       message: 'Erreur d\'authentification',

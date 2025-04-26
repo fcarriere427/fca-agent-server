@@ -1,11 +1,11 @@
-// FCA-Agent - Configuration du logger
+// FCA-Agent - Configuration du logger simplifié
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
 // Format personnalisé avec timestamp cohérent
-const logFormat = winston.format.printf(({ level, message, timestamp }) => {
-  return `${timestamp} ${level.toUpperCase()}: ${message}`;
+const logFormat = winston.format.printf(({ level, message, timestamp, module }) => {
+  return `${timestamp} ${module ? `[${module}]` : ''} ${level.toUpperCase()}: ${message}`;
 });
 
 // Répertoire des logs - utiliser un chemin absolu pour compatibilité avec le service
@@ -16,7 +16,7 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// Configuration du logger
+// Configuration du logger avec trois niveaux: info, warn et error
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
@@ -48,6 +48,16 @@ const logger = winston.createLogger({
   ]
 });
 
+// Fonction pour créer un logger avec un module spécifique
+const createModuleLogger = (moduleName) => {
+  return {
+    info: (message, ...args) => logger.info(message, { module: moduleName, ...args }),
+    warn: (message, ...args) => logger.warn(message, { module: moduleName, ...args }),
+    error: (message, ...args) => logger.error(message, { module: moduleName, ...args }),
+    debug: (message, ...args) => logger.debug(message, { module: moduleName, ...args })
+  };
+};
+
 // Remplacer console.log, console.error, etc. pour capturer tous les logs
 // Cela garantit que même les console.log() directs seront formatés et capturés par Winston
 const originalConsoleLog = console.log;
@@ -71,7 +81,7 @@ console.warn = function() {
   const args = Array.from(arguments).map(arg => 
     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
   ).join(' ');
-  logger.warn(args);
+  logger.warn(args); // Maintenant dirigé vers warn au lieu de info
 };
 
 const originalConsoleInfo = console.info;
@@ -80,27 +90,6 @@ console.info = function() {
     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
   ).join(' ');
   logger.info(args);
-};
-
-// Fonctions de log spécifiques pour les réponses
-const logResponseCache = (responseId, length) => {
-  logger.info(`RESPONSE_CACHED - ID: ${responseId} - Length: ${length}`);
-};
-
-const logResponseSent = (responseId, length) => {
-  logger.info(`RESPONSE_SENT - ID: ${responseId} - Length: ${length}`);
-};
-
-const logResponseRequest = (responseId) => {
-  logger.info(`RESPONSE_REQUESTED - ID: ${responseId}`);
-};
-
-const logClaudeResponse = (taskId, type, data) => {
-  const safeData = { 
-    ...data,
-    response: data.response ? `${data.response.substring(0, 200)}... (${data.response.length} caractères)` : null
-  };
-  logger.info(`CLAUDE_RESPONSE - ID: ${taskId} - Type: ${type} - Data: ${JSON.stringify(safeData, null, 2)}`);
 };
 
 // Capture des logs du processus non gérés
@@ -116,10 +105,40 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Promesse rejetée non gérée: ${reason}`, { stack: reason.stack });
 });
 
+// Fonctions de logging spécifiques pour les réponses
+const logResponseCache = (responseId, length) => {
+  const responseLogger = createModuleLogger('SERVER:RESPONSE:CACHE');
+  responseLogger.info(`Réponse mise en cache: ID=${responseId}, longueur=${length} caractères`);
+};
+
+const logResponseSent = (responseId) => {
+  const responseLogger = createModuleLogger('SERVER:RESPONSE:SENT');
+  responseLogger.info(`Réponse envoyée: ID=${responseId}`);
+};
+
+const logResponseRequest = (responseId) => {
+  const responseLogger = createModuleLogger('SERVER:RESPONSE:REQUEST');
+  responseLogger.info(`Réponse demandée: ID=${responseId}`);
+};
+
+const logClaudeResponse = (taskId, type, result) => {
+  const claudeLogger = createModuleLogger('SERVER:CLAUDE:RESPONSE');
+  claudeLogger.info(`Réponse de Claude pour la tâche ${taskId} (${type})`);
+  
+  if (result && result.usage) {
+    claudeLogger.info(`Utilisation: ${JSON.stringify(result.usage)}`);
+  }
+  
+  if (result && result.error) {
+    claudeLogger.error(`Erreur: ${result.error}`);
+  }
+};
+
 module.exports = { 
-  logger,
+  logger, 
+  createModuleLogger,
   logResponseCache,
-  logResponseSent, 
+  logResponseSent,
   logResponseRequest,
-  logClaudeResponse
+  logClaudeResponse 
 };

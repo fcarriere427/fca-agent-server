@@ -3,11 +3,14 @@ const express = require('express');
 const router = express.Router();
 const { 
   logger,
+  createModuleLogger,
   logResponseCache, 
   logResponseSent, 
   logResponseRequest,
   logClaudeResponse 
 } = require('../utils/logger');
+const MODULE_NAME = 'SERVER:API:TASKS';
+const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');
 const authMiddleware = require('../utils/auth');
@@ -29,7 +32,7 @@ router.get('/hello', (req, res) => {
   // Envoyer une réponse simple
   res.send('Hello World - Test de l\'API réussi !');
   
-  logger.info('[SERVER:API:TASKS] Route de test /hello appelée avec succès');
+  log.info('Route de test /hello appelée avec succès');
 });
 
 // POST /api/tasks - Créer une nouvelle tâche
@@ -51,12 +54,12 @@ router.post('/', async (req, res) => {
       [userId, type, 'pending', JSON.stringify(data)],
       async function(err) {
         if (err) {
-          logger.error('[SERVER:API:TASKS] Erreur lors de la création de la tâche:', err);
+          log.error('Erreur lors de la création de la tâche:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
         const taskId = this.lastID;
-        logger.info(`[SERVER:API:TASKS] Nouvelle tâche créée: ${type} (id: ${taskId})`);
+        log.info(`Nouvelle tâche créée: ${type} (id: ${taskId})`);
         
         try {
           // Traitement de la tâche en fonction de son type
@@ -112,17 +115,17 @@ router.post('/', async (req, res) => {
             responseCache[responseId] = safeResponse;
             
             // Log explicite pour le cache
-            logger.info(`[SERVER:API:TASKS] Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
+            log.info(`Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
             logResponseCache(responseId, safeResponse.length);
             
             // Créer un fichier log des clés du cache pour debugging
             const cacheKeys = Object.keys(responseCache);
-            logger.info(`[SERVER:API:TASKS] Clés disponibles dans le cache: ${cacheKeys.join(', ')}`);
+            log.info(`Clés disponibles dans le cache: ${cacheKeys.join(', ')}`);
             
             // Supprimer la cache après 10 minutes
             setTimeout(() => {
               delete responseCache[responseId];
-              logger.info(`[SERVER:API:TASKS] Cache supprimée pour ${responseId}`);
+              log.info(`Cache supprimée pour ${responseId}`);
             }, 10 * 60 * 1000);
             
             // Renvoyer une référence à la réponse complète au lieu de la réponse elle-même
@@ -143,7 +146,7 @@ router.post('/', async (req, res) => {
             });
           }
         } catch (error) {
-          logger.error(`[SERVER:API:TASKS] Erreur lors de l'exécution de la tâche ${taskId}:`, error);
+          log.error(`Erreur lors de l'exécution de la tâche ${taskId}:`, error);
           
           // Mettre à jour le statut de la tâche en cas d'erreur
           db.run(
@@ -159,7 +162,7 @@ router.post('/', async (req, res) => {
       }
     );
   } catch (error) {
-    logger.error('[SERVER:API:TASKS] Erreur lors de la création de la tâche:', error);
+    log.error('Erreur lors de la création de la tâche:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -178,14 +181,14 @@ router.get('/', (req, res) => {
       [userId, limit, offset],
       (err, tasks) => {
         if (err) {
-          logger.error('[SERVER:API:TASKS] Erreur lors de la récupération des tâches:', err);
+          log.error('Erreur lors de la récupération des tâches:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
         // Compter le nombre total de tâches
         db.get('SELECT COUNT(*) as count FROM tasks WHERE user_id = ?', [userId], (err, result) => {
           if (err) {
-            logger.error('[SERVER:API:TASKS] Erreur lors du comptage des tâches:', err);
+            log.error('Erreur lors du comptage des tâches:', err);
             return res.status(500).json({ error: 'Erreur serveur' });
           }
           
@@ -199,7 +202,7 @@ router.get('/', (req, res) => {
       }
     );
   } catch (error) {
-    logger.error('[SERVER:API:TASKS] Erreur lors de la récupération des tâches:', error);
+    log.error('Erreur lors de la récupération des tâches:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -219,7 +222,7 @@ router.get('/:id', (req, res) => {
       [taskId, userId],
       (err, task) => {
         if (err) {
-          logger.error('[SERVER:API:TASKS] Erreur lors de la récupération de la tâche:', err);
+          log.error('Erreur lors de la récupération de la tâche:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
@@ -232,14 +235,14 @@ router.get('/:id', (req, res) => {
           if (task.input) task.input = JSON.parse(task.input);
           if (task.result) task.result = JSON.parse(task.result);
         } catch (error) {
-          logger.warn('[SERVER:API:TASKS] Erreur lors de la conversion JSON pour la tâche', taskId, error);
+          log.warn('Erreur lors de la conversion JSON pour la tâche', taskId, error);
         }
         
         res.status(200).json({ task });
       }
     );
   } catch (error) {
-    logger.error('[SERVER:API:TASKS] Erreur lors de la récupération de la tâche:', error);
+    log.error('Erreur lors de la récupération de la tâche:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
