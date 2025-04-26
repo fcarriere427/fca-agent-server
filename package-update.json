@@ -4,8 +4,8 @@
   "description": "Serveur pour FCA-Agent, un assistant IA personnel",
   "main": "index.js",
   "scripts": {
-    "start": "node --no-warnings=DEP0040 index.js",
-    "dev": "nodemon --no-warnings=DEP0040 index.js",
+    "start": "node -r ./punycode-shim.js index.js",
+    "dev": "nodemon -r ./punycode-shim.js index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -20,6 +20,7 @@
     "express-rate-limit": "^7.1.0",
     "helmet": "^7.0.0",
     "morgan": "^1.10.0",
+    "punycode2": "^1.0.0",
     "sqlite3": "^5.1.6",
     "winston": "^3.10.0"
   },
