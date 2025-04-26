@@ -58,6 +58,33 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
+// Route de statut accessible sans authentification pour faciliter le débogage
+app.get('/api/status', (req, res) => {
+  log.info('Accès non-authentifié au statut (mode débogage)'); 
+  const db = require('./db/setup').getDb();
+  let dbStatus = 'connected';
+  
+  db.get('SELECT 1', (err) => {
+    if (err) {
+      log.info('Erreur lors de la vérification de la base de données:', err);
+      dbStatus = 'error';
+    }
+    
+    const claudeApiKey = process.env.ANTHROPIC_API_KEY;
+    const claudeStatus = claudeApiKey ? 'configured' : 'not_configured';
+    
+    res.status(200).json({
+      status: 'connected',
+      version: '0.1.0',
+      uptime: process.uptime(),
+      database: dbStatus,
+      claude_api: claudeStatus,
+      timestamp: new Date().toISOString(),
+      debug: true
+    });
+  });
+});
+
 // Middleware d'authentification pour routes protégées
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/auth/')) {
