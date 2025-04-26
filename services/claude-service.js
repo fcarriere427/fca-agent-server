@@ -9,7 +9,7 @@ let anthropic;
 try {
   // Vérification de la clé API
   if (apiKey === 'PLACEHOLDER_KEY' || apiKey === 'your_anthropic_api_key_here') {
-    logger.error('Clé API Anthropic non configurée correctement dans .env');
+    logger.error('[SERVER:SERVICES:CLAUDE-SERVICE] Clé API Anthropic non configurée correctement dans .env');
     throw new Error('Clé API Anthropic non configurée');
   }
   
@@ -18,7 +18,7 @@ try {
     apiKey: apiKey,
   });
   
-  logger.info('Initialisation du client Anthropic : OK');
+  logger.info('[SERVER:SERVICES:CLAUDE-SERVICE] Initialisation du client Anthropic : OK');
 } catch (error) {
   logger.error('Erreur lors de l\'initialisation du client Anthropic:', error);
   // Initialiser un objet de secours pour éviter les erreurs null

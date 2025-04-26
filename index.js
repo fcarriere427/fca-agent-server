@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3001;
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
-  logger.info(`Répertoire créé: ${logsDir}`);
+  logger.info(`[SERVER:INDEX] Répertoire créé: ${logsDir}`);
 }
 
 // Configuration des middlewares
@@ -73,7 +73,7 @@ app.use('/api/jsonp', jsonpRoutes.router);
 
 // Gestion des erreurs
 app.use((err, req, res, next) => {
-  logger.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  logger.error(`[SERVER:INDEX] ${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
   res.status(err.status || 500).json({
     error: {
       message: err.message || 'Une erreur interne est survenue'
@@ -84,20 +84,20 @@ app.use((err, req, res, next) => {
 // Initialisation de la base de données et démarrage du serveur
 setupDatabase()
   .then(() => {
-    logger.info('Base de données initialisée avec succès');
+    logger.info('[SERVER:INDEX] Base de données initialisée avec succès');
     app.listen(PORT, () => {
-      logger.info(`Serveur FCA-Agent démarré sur le port ${PORT}`);
-      logger.info(`Environnement: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`[SERVER:INDEX] Serveur FCA-Agent démarré sur le port ${PORT}`);
+      logger.info(`[SERVER:INDEX] Environnement: ${process.env.NODE_ENV || 'development'}`);
     });
   })
   .catch(err => {
-    logger.error('Erreur lors de l\'initialisation de la base de données:', err);
+    logger.error('[SERVER:INDEX] Erreur lors de l\'initialisation de la base de données:', err);
     process.exit(1);
   });
 
 // Gestion de l'arrêt propre
 process.on('SIGINT', () => {
-  logger.info('Arrêt du serveur FCA-Agent...');
+  logger.info('[SERVER:INDEX] Arrêt du serveur FCA-Agent...');
   process.exit(0);
 });
 

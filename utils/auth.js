@@ -6,7 +6,7 @@ const authConfig = require('./auth-config');
  * Middleware qui vérifie si l'utilisateur est authentifié via un cookie
  */
 const simpleAuthMiddleware = (req, res, next) => {
-  logger.debug('[SERVER:AUTH] Vérification de l\'authentification pour ' + req.originalUrl);
+  logger.debug('[SERVER:UTILS:AUTH] Vérification de l\'authentification pour ' + req.originalUrl);
   
   try {
     // Vérifier si le cookie d'authentification existe
@@ -19,11 +19,11 @@ const simpleAuthMiddleware = (req, res, next) => {
                       : null;
     
     // Log des informations d'authentification
-    logger.debug(`[SERVER:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
+    logger.debug(`[SERVER:UTILS:AUTH] Cookie: ${authCookie ? 'présent' : 'absent'}, Bearer: ${bearerToken ? 'présent' : 'absent'}`);
     
     // Si aucun cookie ni token n'est trouvé, retourner un statut 401 Unauthorized
     if (!authCookie && !bearerToken) {
-      logger.info('[SERVER:AUTH] Accès refusé: aucune information d\'authentification');
+      logger.info('[SERVER:UTILS:AUTH] Accès refusé: aucune information d\'authentification');
       return res.status(401).json({ 
         authenticated: false, 
         message: 'Authentification requise',
@@ -32,10 +32,10 @@ const simpleAuthMiddleware = (req, res, next) => {
     }
     
     // Si le cookie ou le token existe, l'utilisateur est authentifié
-    logger.debug('[SERVER:AUTH] Authentification validée');
+    logger.debug('[SERVER:UTILS:AUTH] Authentification validée');
     next();
   } catch (error) {
-    logger.error('[SERVER:AUTH] Erreur dans le middleware:', error);
+    logger.error('[SERVER:UTILS:AUTH] Erreur dans le middleware:', error);
     return res.status(401).json({ 
       authenticated: false, 
       message: 'Erreur d\'authentification',

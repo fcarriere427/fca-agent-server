@@ -29,7 +29,7 @@ router.get('/hello', (req, res) => {
   // Envoyer une réponse simple
   res.send('Hello World - Test de l\'API réussi !');
   
-  logger.info('Route de test /hello appelée avec succès');
+  logger.info('[SERVER:API:TASKS] Route de test /hello appelée avec succès');
 });
 
 // POST /api/tasks - Créer une nouvelle tâche
@@ -51,12 +51,12 @@ router.post('/', async (req, res) => {
       [userId, type, 'pending', JSON.stringify(data)],
       async function(err) {
         if (err) {
-          logger.error('Erreur lors de la création de la tâche:', err);
+          logger.error('[SERVER:API:TASKS] Erreur lors de la création de la tâche:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
         const taskId = this.lastID;
-        logger.info(`Nouvelle tâche créée: ${type} (id: ${taskId})`);
+        logger.info(`[SERVER:API:TASKS] Nouvelle tâche créée: ${type} (id: ${taskId})`);
         
         try {
           // Traitement de la tâche en fonction de son type
@@ -112,17 +112,17 @@ router.post('/', async (req, res) => {
             responseCache[responseId] = safeResponse;
             
             // Log explicite pour le cache
-            logger.info(`Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
+            logger.info(`[SERVER:API:TASKS] Réponse mise en cache: ID=${responseId}, longueur=${safeResponse.length} caractères`);
             logResponseCache(responseId, safeResponse.length);
             
             // Créer un fichier log des clés du cache pour debugging
             const cacheKeys = Object.keys(responseCache);
-            logger.info(`Clés disponibles dans le cache: ${cacheKeys.join(', ')}`);
+            logger.info(`[SERVER:API:TASKS] Clés disponibles dans le cache: ${cacheKeys.join(', ')}`);
             
             // Supprimer la cache après 10 minutes
             setTimeout(() => {
               delete responseCache[responseId];
-              logger.info(`Cache supprimée pour ${responseId}`);
+              logger.info(`[SERVER:API:TASKS] Cache supprimée pour ${responseId}`);
             }, 10 * 60 * 1000);
             
             // Renvoyer une référence à la réponse complète au lieu de la réponse elle-même
@@ -143,7 +143,7 @@ router.post('/', async (req, res) => {
             });
           }
         } catch (error) {
-          logger.error(`Erreur lors de l'exécution de la tâche ${taskId}:`, error);
+          logger.error(`[SERVER:API:TASKS] Erreur lors de l'exécution de la tâche ${taskId}:`, error);
           
           // Mettre à jour le statut de la tâche en cas d'erreur
           db.run(
@@ -159,7 +159,7 @@ router.post('/', async (req, res) => {
       }
     );
   } catch (error) {
-    logger.error('Erreur lors de la création de la tâche:', error);
+    logger.error('[SERVER:API:TASKS] Erreur lors de la création de la tâche:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -178,14 +178,14 @@ router.get('/', (req, res) => {
       [userId, limit, offset],
       (err, tasks) => {
         if (err) {
-          logger.error('Erreur lors de la récupération des tâches:', err);
+          logger.error('[SERVER:API:TASKS] Erreur lors de la récupération des tâches:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
         // Compter le nombre total de tâches
         db.get('SELECT COUNT(*) as count FROM tasks WHERE user_id = ?', [userId], (err, result) => {
           if (err) {
-            logger.error('Erreur lors du comptage des tâches:', err);
+            logger.error('[SERVER:API:TASKS] Erreur lors du comptage des tâches:', err);
             return res.status(500).json({ error: 'Erreur serveur' });
           }
           
@@ -199,61 +199,8 @@ router.get('/', (req, res) => {
       }
     );
   } catch (error) {
-    logger.error('Erreur lors de la récupération des tâches:', error);
+    logger.error('[SERVER:API:TASKS] Erreur lors de la récupération des tâches:', error);
     res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// GET /api/tasks/response/:id - Récupérer une réponse cachée par ID
-router.get('/response/:id', (req, res) => {
-  try {
-    const responseId = req.params.id;
-    
-    // Log détaillé de la requête
-    logger.info(`[DEBUG] Requête de réponse reçue pour ID: ${responseId}`);
-    logger.info(`[DEBUG] Headers de la requête: ${JSON.stringify(req.headers)}`);
-    
-    // Log du contenu actuel du cache
-    const cacheKeys = Object.keys(responseCache);
-    logger.info(`[DEBUG] Clés actuellement en cache: ${cacheKeys.join(', ')}`);
-    logger.info(`[DEBUG] Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
-    
-    logResponseRequest(responseId);
-    
-    // Vérifier si la réponse existe dans le cache
-    if (!responseCache[responseId]) {
-      logger.error(`Réponse non trouvée dans le cache: ${responseId}`);
-      return res.status(404).json({ error: 'Réponse non trouvée ou expirée' });
-    }
-    
-    // Log détaillé de la réponse avant envoi
-    logger.info(`Envoi de réponse complète depuis le cache: ID=${responseId}, longueur=${responseCache[responseId].length}`);
-    logger.info(`[DEBUG] Type de contenu de la réponse: ${typeof responseCache[responseId]}`);
-    logger.info(`[DEBUG] Début de la réponse: ${responseCache[responseId].substring(0, 50)}...`);
-    
-    // Log complet des headers qui seront envoyés
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Response-Id', responseId);
-    res.setHeader('X-Response-Length', responseCache[responseId].length.toString());
-    
-    // Ajouter des en-têtes CORS très permissifs
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.setHeader('Access-Control-Max-Age', '3600');
-    
-    logger.info(`[DEBUG] Headers de réponse: ${JSON.stringify(res.getHeaders())}`);
-    
-    logResponseSent(responseId, responseCache[responseId].length);
-    
-    // Envoyer la réponse en format texte brut
-    res.status(200).send(responseCache[responseId]);
-    
-    logger.info(`[DEBUG] Réponse envoyée avec succès pour ${responseId}`);
-  } catch (error) {
-    logger.error(`[DEBUG] Erreur lors de la récupération de la réponse cachée: ${error.message}`, error);
-    logger.error(`[DEBUG] Stack trace: ${error.stack}`);
-    res.status(500).json({ error: 'Erreur serveur', message: error.message });
   }
 });
 
@@ -280,7 +227,7 @@ router.get('/:id', (req, res) => {
       [taskId, userId],
       (err, task) => {
         if (err) {
-          logger.error('Erreur lors de la récupération de la tâche:', err);
+          logger.error('[SERVER:API:TASKS] Erreur lors de la récupération de la tâche:', err);
           return res.status(500).json({ error: 'Erreur serveur' });
         }
         
@@ -293,34 +240,14 @@ router.get('/:id', (req, res) => {
           if (task.input) task.input = JSON.parse(task.input);
           if (task.result) task.result = JSON.parse(task.result);
         } catch (error) {
-          logger.warn('Erreur lors de la conversion JSON pour la tâche', taskId, error);
+          logger.warn('[SERVER:API:TASKS] Erreur lors de la conversion JSON pour la tâche', taskId, error);
         }
         
         res.status(200).json({ task });
       }
     );
   } catch (error) {
-    logger.error('Erreur lors de la récupération de la tâche:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Ajout d'une route de secours pour tester le système de réponse
-router.get('/test/cache-status', (req, res) => {
-  try {
-    const cacheKeys = Object.keys(responseCache);
-    const cacheStatus = cacheKeys.map(key => ({
-      id: key,
-      length: responseCache[key] ? responseCache[key].length : 0,
-      preview: responseCache[key] ? responseCache[key].substring(0, 50) + '...' : 'Vide'
-    }));
-    
-    res.status(200).json({
-      cacheSize: cacheKeys.length,
-      entries: cacheStatus
-    });
-  } catch (error) {
-    logger.error('Erreur lors de la récupération du statut du cache:', error);
+    logger.error('[SERVER:API:TASKS] Erreur lors de la récupération de la tâche:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

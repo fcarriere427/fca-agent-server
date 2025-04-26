@@ -9,7 +9,7 @@ let responseCache = {};
 // Initialiser le cache en référence à celui de tasks.js
 const initializeCache = (cache) => {
   responseCache = cache;
-  logger.info('Cache JSONP initialisé avec référence au cache principal');
+  logger.info('[SERVER:API:JSONP] Initalisation du cache JSONP : OK');
 };
 
 // GET /api/jsonp/response/:id - Récupérer une réponse cachée par ID en format JSONP
@@ -18,16 +18,16 @@ router.get('/response/:id', (req, res) => {
     const responseId = req.params.id;
     const callback = req.query.callback || 'handleResponse'; // Fonction callback côté client
     
-    logger.info(`[JSONP] Requête de réponse reçue pour ID: ${responseId}, callback: ${callback}`);
+    logger.info(`[SERVER:API:JSONP] Requête de réponse reçue pour ID: ${responseId}, callback: ${callback}`);
     
     // Log du contenu actuel du cache
     const cacheKeys = Object.keys(responseCache);
-    logger.info(`[JSONP] Clés en cache: ${cacheKeys.join(', ')}`);
-    logger.info(`[JSONP] Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
+    logger.info(`[SERVER:API:JSONP] Clés en cache: ${cacheKeys.join(', ')}`);
+    logger.info(`[SERVER:API:JSONP] Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
     
     // Vérifier si la réponse existe dans le cache
     if (!responseCache[responseId]) {
-      logger.error(`[JSONP] Réponse non trouvée dans le cache: ${responseId}`);
+      logger.error(`[SERVER:API:JSONP] Réponse non trouvée dans le cache: ${responseId}`);
       return res.send(`${callback}({"error": "Réponse non trouvée ou expirée"})`);
     }
     
@@ -41,15 +41,15 @@ router.get('/response/:id', (req, res) => {
       .replace(/\f/g, '\\f');  // Échapper les sauts de page
     
     // Log détaillé de la réponse avant envoi
-    logger.info(`[JSONP] Envoi de réponse complète: ID=${responseId}, longueur=${response.length}`);
+    logger.info(`[SERVER:API:JSONP] Envoi de réponse complète: ID=${responseId}, longueur=${response.length}`);
     
     // Envoyer la réponse en format JSONP
     res.setHeader('Content-Type', 'application/javascript');
     res.send(`${callback}({"response": "${response}"})`);
     
-    logger.info(`[JSONP] Réponse envoyée avec succès pour ${responseId}`);
+    logger.info(`[SERVER:API:JSONP] Réponse envoyée avec succès pour ${responseId}`);
   } catch (error) {
-    logger.error(`[JSONP] Erreur lors de la récupération: ${error.message}`, error);
+    logger.error(`[SERVER:API:JSONP] Erreur lors de la récupération: ${error.message}`, error);
     const callback = req.query.callback || 'handleResponse';
     res.send(`${callback}({"error": "Erreur serveur: ${error.message}"})`);
   }

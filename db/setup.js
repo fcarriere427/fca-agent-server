@@ -12,15 +12,15 @@ let db;
 // Initialisation de la base de données
 function setupDatabase() {
   return new Promise((resolve, reject) => {
-    logger.info(`Initialisation de la base de données: ${dbPath}`);
+    logger.info(`[SERVER:DB:SETUP] Initialisation de la base de données: ${dbPath}`);
     
     db = new sqlite3.Database(dbPath, (err) => {
       if (err) {
-        logger.error('Erreur lors de la connexion à la base de données:', err);
+        logger.error('[SERVER:DB:SETUP] Erreur lors de la connexion à la base de données:', err);
         return reject(err);
       }
       
-      logger.info('Connexion à la base de données établie');
+      logger.info('[SERVER:DB:SETUP] Connexion à la base de données établie');
       
       // Création des tables
       db.serialize(() => {
@@ -35,7 +35,7 @@ function setupDatabase() {
           completed_at TEXT
         )`, (err) => {
           if (err) {
-            logger.error('Erreur lors de la création de la table tasks:', err);
+            logger.error('[SERVER:DB:SETUP] Erreur lors de la création de la table tasks:', err);
             return reject(err);
           }
         });
@@ -49,11 +49,11 @@ function setupDatabase() {
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )`, (err) => {
           if (err) {
-            logger.error('Erreur lors de la création de la table settings:', err);
+            logger.error('[SERVER:DB:SETUP] Erreur lors de la création de la table settings:', err);
             return reject(err);
           }
           
-          logger.info('Tables créées avec succès');
+          logger.info('[SERVER:DB:SETUP] Tables créées avec succès');
           resolve();
         });
       });
@@ -75,10 +75,10 @@ function closeDb() {
     if (db) {
       db.close((err) => {
         if (err) {
-          logger.error('Erreur lors de la fermeture de la base de données:', err);
+          logger.error('[SERVER:DB:SETUP] Erreur lors de la fermeture de la base de données:', err);
           return reject(err);
         }
-        logger.info('Connexion à la base de données fermée');
+        logger.info('[SERVER:DB:SETUP] Connexion à la base de données fermée');
         db = null;
         resolve();
       });
