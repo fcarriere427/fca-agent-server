@@ -47,7 +47,7 @@ app.use(cookieParser());
 app.use(morgan('dev', { stream: { write: message => log.info(`${message.trim()}`) } }));
 
 // Importation des routes
-const authRoutes = require('./api/auth-simple');
+const authRoutes = require('./api/auth');
 const statusRoutes = require('./api/status');
 const tasksRoutes = require('./api/tasks');
 const jsonpRoutes = require('./api/jsonp');
