@@ -1,128 +1,247 @@
-// FCA-Agent - Configuration du logger simplifié
+// FCA-Agent - Module de journalisation unifié pour le serveur
+// Ce module remplace tous les loggers spécifiques et fournit une interface unifiée
+// permettant de distinguer les sources à l'aide de préfixes et niveaux de log configurables
+
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// Format personnalisé avec timestamp cohérent
-const logFormat = winston.format.printf(({ level, message, timestamp, module }) => {
-  return `${timestamp} ${module ? `[${module}]` : ''} ${level.toUpperCase()}: ${message}`;
-});
-
-// Répertoire des logs - utiliser un chemin absolu pour compatibilité avec le service
-const logsDir = process.env.LOG_DIR || path.join(__dirname, '../logs');
+/**
+ * Configuration globale du logger
+ * Peut être modifiée pendant l'exécution
+ */
+const logConfig = {
+  // Niveau minimum des logs à afficher/stocker
+  level: process.env.LOG_LEVEL || 'info',
+  
+  // Répertoire de stockage des logs
+  logDir: process.env.LOG_DIR || path.join(__dirname, '../logs'),
+  
+  // Taille maximale des fichiers de log avant rotation (10MB par défaut)
+  maxSize: 10 * 1024 * 1024,
+  
+  // Nombre maximum de fichiers de log à conserver
+  maxFiles: 5,
+  
+  // Si true, affiche les logs dans la console
+  consoleOutput: true,
+  
+  // Si true, affiche les traces de stack pour les erreurs
+  showStackTrace: true,
+  
+  // Configuration par module
+  modules: {
+    // Par défaut, tous les modules sont activés au niveau configuré
+    '*': true
+    // Exemples:
+    // 'server': 'debug', // Active les logs de debug pour le module server
+    // 'claude': false    // Désactive les logs du module claude
+  }
+};
 
 // S'assurer que le répertoire des logs existe
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+if (!fs.existsSync(logConfig.logDir)) {
+  fs.mkdirSync(logConfig.logDir, { recursive: true });
 }
 
-// Configuration du logger avec trois niveaux: info, warn et error
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+// Format personnalisé pour les logs avec module et timestamp
+const logFormat = winston.format.printf(({ level, message, timestamp, module, ...metadata }) => {
+  let formattedMessage = `${timestamp} ${level.toUpperCase()} [${module || 'default'}]: ${message}`;
+  
+  // Ajouter les métadonnées s'il y en a
+  if (Object.keys(metadata).length > 0 && metadata.stack !== undefined) {
+    return `${formattedMessage}\n${metadata.stack}`;
+  } else if (Object.keys(metadata).length > 0) {
+    return `${formattedMessage}\n${JSON.stringify(metadata, null, 2)}`;
+  }
+  
+  return formattedMessage;
+});
+
+// Création du logger Winston
+const winstonLogger = winston.createLogger({
+  level: logConfig.level,
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
     logFormat
   ),
   transports: [
-    // Console pour le développement (avec couleurs)
+    // Fichier pour les erreurs uniquement
+    new winston.transports.File({ 
+      filename: path.join(logConfig.logDir, 'error.log'), 
+      level: 'error',
+      maxsize: logConfig.maxSize,
+      maxFiles: logConfig.maxFiles,
+    }),
+    // Fichier pour tous les logs
+    new winston.transports.File({ 
+      filename: path.join(logConfig.logDir, 'all.log'),
+      maxsize: logConfig.maxSize,
+      maxFiles: logConfig.maxFiles,
+    })
+  ]
+});
+
+// Ajouter la sortie console si activée
+if (logConfig.consoleOutput) {
+  winstonLogger.add(
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         logFormat
       )
-    }),
-    // Fichier pour les erreurs uniquement
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'), 
-      level: 'error',
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-    }),
-    // Fichier pour tous les logs
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'all.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
     })
-  ]
-});
+  );
+}
 
-// Fonction pour créer un logger avec un module spécifique
-const createModuleLogger = (moduleName) => {
-  return {
-    info: (message, ...args) => logger.info(message, { module: moduleName, ...args }),
-    warn: (message, ...args) => logger.warn(message, { module: moduleName, ...args }),
-    error: (message, ...args) => logger.error(message, { module: moduleName, ...args }),
-    debug: (message, ...args) => logger.debug(message, { module: moduleName, ...args })
-  };
-};
+/**
+ * Détermine si un message doit être journalisé selon la configuration du module
+ * @param {string} level - Niveau du log
+ * @param {string} module - Nom du module
+ * @returns {boolean} - True si le message doit être journalisé
+ */
+function shouldLog(level, module) {
+  // Ordre des niveaux de log dans Winston
+  const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+  
+  // Déterminer le niveau configuré pour ce module
+  let moduleLevel;
+  
+  if (typeof logConfig.modules[module] === 'string') {
+    // Si le module a un niveau spécifique configuré
+    moduleLevel = logConfig.modules[module];
+  } else if (logConfig.modules[module] === false) {
+    // Si le module est explicitement désactivé
+    return false;
+  } else if (logConfig.modules[module] === true || !module || !logConfig.modules[module]) {
+    // Si le module est explicitement activé ou non configuré, utiliser le niveau global
+    moduleLevel = logConfig.level;
+  }
+  
+  // Comparer les niveaux
+  return levels[level] <= levels[moduleLevel];
+}
 
-// Remplacer console.log, console.error, etc. pour capturer tous les logs
-// Cela garantit que même les console.log() directs seront formatés et capturés par Winston
-const originalConsoleLog = console.log;
-console.log = function() {
-  const args = Array.from(arguments).map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-  ).join(' ');
-  logger.info(args);
-};
+/**
+ * Classe Logger - Représente un logger pour un module spécifique
+ */
+class Logger {
+  /**
+   * Crée une nouvelle instance de Logger
+   * @param {string} module - Nom du module associé à ce logger
+   */
+  constructor(module) {
+    this.module = module;
+  }
+  
+  /**
+   * Log de niveau debug
+   * @param {string} message - Message à journaliser
+   * @param {Object} [metadata] - Métadonnées supplémentaires
+   */
+  debug(message, metadata = {}) {
+    if (shouldLog('debug', this.module)) {
+      winstonLogger.debug(message, { module: this.module, ...metadata });
+    }
+  }
+  
+  /**
+   * Log de niveau info
+   * @param {string} message - Message à journaliser
+   * @param {Object} [metadata] - Métadonnées supplémentaires
+   */
+  info(message, metadata = {}) {
+    if (shouldLog('info', this.module)) {
+      winstonLogger.info(message, { module: this.module, ...metadata });
+    }
+  }
+  
+  /**
+   * Log de niveau warn
+   * @param {string} message - Message à journaliser
+   * @param {Object} [metadata] - Métadonnées supplémentaires
+   */
+  warn(message, metadata = {}) {
+    if (shouldLog('warn', this.module)) {
+      winstonLogger.warn(message, { module: this.module, ...metadata });
+    }
+  }
+  
+  /**
+   * Log de niveau error
+   * @param {string} message - Message d'erreur
+   * @param {Error|Object} [errorOrMetadata] - Objet d'erreur ou métadonnées
+   */
+  error(message, errorOrMetadata = {}) {
+    if (shouldLog('error', this.module)) {
+      let metadata = {};
+      
+      if (errorOrMetadata instanceof Error) {
+        metadata.stack = errorOrMetadata.stack;
+        metadata.message = errorOrMetadata.message;
+      } else {
+        metadata = errorOrMetadata;
+      }
+      
+      winstonLogger.error(message, { module: this.module, ...metadata });
+    }
+  }
+  
+  // Méthodes de compatibilité avec l'ancien logger
+  log(message, metadata = {}) {
+    this.info(message, metadata);
+  }
+}
 
-const originalConsoleError = console.error;
-console.error = function() {
-  const args = Array.from(arguments).map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-  ).join(' ');
-  logger.error(args);
-};
+/**
+ * Crée un logger pour un module spécifique
+ * @param {string} module - Nom du module
+ * @returns {Logger} - Instance de Logger configurée pour le module
+ */
+function createLogger(module) {
+  return new Logger(module);
+}
 
-const originalConsoleWarn = console.warn;
-console.warn = function() {
-  const args = Array.from(arguments).map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-  ).join(' ');
-  logger.warn(args); // Maintenant dirigé vers warn au lieu de info
-};
+// Logger par défaut pour les cas où aucun module n'est spécifié
+const defaultLogger = createLogger('default');
 
-const originalConsoleInfo = console.info;
-console.info = function() {
-  const args = Array.from(arguments).map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-  ).join(' ');
-  logger.info(args);
-};
+// Fonctions utilitaires spécifiques aux besoins précis
+const responseLogger = createLogger('SERVER:RESPONSE');
 
-// Capture des logs du processus non gérés
-process.on('uncaughtException', (err) => {
-  logger.error(`Exception non gérée: ${err.message}`, { stack: err.stack });
-  // Laisser le temps au log d'être écrit
-  setTimeout(() => {
-    process.exit(1);
-  }, 1000);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error(`Promesse rejetée non gérée: ${reason}`, { stack: reason.stack });
-});
-
-// Fonctions de logging spécifiques pour les réponses
-const logResponseCache = (responseId, length) => {
-  const responseLogger = createModuleLogger('SERVER:RESPONSE:CACHE');
+/**
+ * Log pour le cache de réponses
+ * @param {string} responseId - ID de la réponse
+ * @param {number} length - Longueur de la réponse
+ */
+function logResponseCache(responseId, length) {
   responseLogger.info(`Réponse mise en cache: ID=${responseId}, longueur=${length} caractères`);
-};
+}
 
-const logResponseSent = (responseId) => {
-  const responseLogger = createModuleLogger('SERVER:RESPONSE:SENT');
+/**
+ * Log pour l'envoi d'une réponse
+ * @param {string} responseId - ID de la réponse
+ */
+function logResponseSent(responseId) {
   responseLogger.info(`Réponse envoyée: ID=${responseId}`);
-};
+}
 
-const logResponseRequest = (responseId) => {
-  const responseLogger = createModuleLogger('SERVER:RESPONSE:REQUEST');
+/**
+ * Log pour une demande de réponse
+ * @param {string} responseId - ID de la réponse
+ */
+function logResponseRequest(responseId) {
   responseLogger.info(`Réponse demandée: ID=${responseId}`);
-};
+}
 
-const logClaudeResponse = (taskId, type, result) => {
-  const claudeLogger = createModuleLogger('SERVER:CLAUDE:RESPONSE');
+/**
+ * Log pour une réponse de Claude
+ * @param {string} taskId - ID de la tâche
+ * @param {string} type - Type de réponse
+ * @param {Object} result - Résultat de la réponse
+ */
+function logClaudeResponse(taskId, type, result) {
+  const claudeLogger = createLogger('SERVER:CLAUDE');
   claudeLogger.info(`Réponse de Claude pour la tâche ${taskId} (${type})`);
   
   if (result && result.usage) {
@@ -132,13 +251,71 @@ const logClaudeResponse = (taskId, type, result) => {
   if (result && result.error) {
     claudeLogger.error(`Erreur: ${result.error}`);
   }
+}
+
+// Rediriger console.log, console.error, etc. vers Winston
+// Cela garantit que les appels console.* standards sont correctement formatés
+const originalConsoleLog = console.log;
+console.log = function() {
+  const args = Array.from(arguments).map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+  ).join(' ');
+  defaultLogger.info(args);
 };
 
-module.exports = { 
-  logger, 
+const originalConsoleError = console.error;
+console.error = function() {
+  const args = Array.from(arguments).map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+  ).join(' ');
+  defaultLogger.error(args);
+};
+
+const originalConsoleWarn = console.warn;
+console.warn = function() {
+  const args = Array.from(arguments).map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+  ).join(' ');
+  defaultLogger.warn(args);
+};
+
+const originalConsoleInfo = console.info;
+console.info = function() {
+  const args = Array.from(arguments).map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+  ).join(' ');
+  defaultLogger.info(args);
+};
+
+// Capture des logs du processus node non gérés
+process.on('uncaughtException', (err) => {
+  defaultLogger.error(`Exception non gérée: ${err.message}`, err);
+  // Laisser le temps au log d'être écrit
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  defaultLogger.error(`Promesse rejetée non gérée`, reason);
+});
+
+// Fonction de compatibilité avec l'ancien code
+const createModuleLogger = createLogger;
+
+// Exports
+module.exports = {
+  // Loggers
+  logger: defaultLogger,
+  createLogger,
   createModuleLogger,
+  
+  // Configuration
+  logConfig,
+  
+  // Fonctions utilitaires spécifiques
   logResponseCache,
   logResponseSent,
   logResponseRequest,
-  logClaudeResponse 
+  logClaudeResponse
 };

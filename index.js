@@ -1,4 +1,4 @@
-// FCA-Agent - Serveur principal
+// FCA-Agent - Serveur principal (version simplifiée)
 
 require('dotenv').config();
 const express = require('express');
@@ -12,7 +12,7 @@ const { setupDatabase } = require('./db/setup');
 const { createModuleLogger } = require('./utils/logger');
 const MODULE_NAME = 'SERVER:INDEX';
 const log = createModuleLogger(MODULE_NAME);
-const simpleAuthMiddleware = require('./utils/auth');
+const { authMiddleware } = require('./utils/auth');
 
 // Initialisation
 const app = express();
@@ -36,7 +36,7 @@ app.use(cors({
   origin: ['chrome-extension://geijajfenikceeemehghgabl61pbded1', 'http://localhost:3001', '*'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'API-Key', 'Cookie', 'X-Requested-With']
 }));
 app.options('*', cors());
 
@@ -47,7 +47,7 @@ app.use(cookieParser());
 app.use(morgan('dev', { stream: { write: message => log.info(`${message.trim()}`) } }));
 
 // Importation des routes
-const authRoutes = require('./api/auth');
+const authRoutes = require('./api/auth-simple');
 const statusRoutes = require('./api/status');
 const tasksRoutes = require('./api/tasks');
 const jsonpRoutes = require('./api/jsonp');
@@ -58,14 +58,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
-// La route de statut est désormais protégée par authentification
-
 // Middleware d'authentification pour routes protégées
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/auth/')) {
-    return next();
+    return next(); // Pas d'authentification pour les routes d'auth
   }
-  simpleAuthMiddleware(req, res, next);
+  authMiddleware(req, res, next);
 });
 
 // Routes API protégées
@@ -126,7 +124,7 @@ setupDatabase()
   .then(() => {
     log.info('Base de données initialisée avec succès');
     app.listen(PORT, () => {
-      log.info(`Serveur FCA-Agent démarré sur le port ${PORT}`);
+      log.info(`Serveur FCA-Agent (version simplifiée) démarré sur le port ${PORT}`);
       log.info(`Environnement: ${process.env.NODE_ENV || 'development'}`);
     });
   })
