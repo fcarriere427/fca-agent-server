@@ -1,6 +1,7 @@
 // FCA-Agent - Service d'interaction avec l'API Claude d'Anthropic
 const { Anthropic } = require('@anthropic-ai/sdk');
 const { createModuleLogger } = require('../utils/logger');
+const { AppError, ErrorTypes, createClaudeApiError, asyncErrorHandler } = require('../utils/error');
 const MODULE_NAME = 'SERVICES:CLAUDE-SERVICE';
 const log = createModuleLogger(MODULE_NAME);
 
@@ -12,7 +13,12 @@ try {
   // Vérification de la clé API
   if (apiKey === 'PLACEHOLDER_KEY' || apiKey === 'your_anthropic_api_key_here') {
     log.error('Clé API Anthropic non configurée correctement dans .env');
-    throw new Error('Clé API Anthropic non configurée');
+    throw new AppError(
+      'Clé API Anthropic non configurée', 
+      ErrorTypes.CONFIG, 
+      500, 
+      { configKey: 'ANTHROPIC_API_KEY' }
+    );
   }
   
   // Initialisation du client avec la nouvelle structure de la version 0.39.0
@@ -22,12 +28,27 @@ try {
   
   log.info('Initialisation du client Anthropic : OK');
 } catch (error) {
-  log.error('Erreur lors de l\'initialisation du client Anthropic:', error);
+  // Vérifier si c'est déjà une AppError
+  const appError = error instanceof AppError 
+    ? error 
+    : new AppError(
+        'Erreur lors de l\'initialisation du client Anthropic', 
+        ErrorTypes.SYSTEM, 
+        500, 
+        null, 
+        error
+      );
+  
+  log.error(`Erreur lors de l'initialisation du client Anthropic: ${appError.message}`, {
+    type: appError.type,
+    details: appError.details
+  });
+  
   // Initialiser un objet de secours pour éviter les erreurs null
   anthropic = {
     messages: {
       create: async () => {
-        throw new Error('Client Anthropic non initialisé correctement');
+        throw appError;
       }
     }
   };
@@ -39,7 +60,17 @@ const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307';
 // Fonction pour traiter un message utilisateur général
 async function processMessage(message) {
   try {
-    log.info(`Traitement du message: "${message.substring(0, 50)}..."`)
+    // Validation de l'entrée
+    if (!message || typeof message !== 'string') {
+      throw new AppError(
+        'Le message doit être une chaîne de caractères non vide',
+        ErrorTypes.VALIDATION,
+        400,
+        { receivedType: typeof message }
+      );
+    }
+    
+    log.info(`Traitement du message: "${message.substring(0, 50)}..."`);
     
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
@@ -48,6 +79,12 @@ async function processMessage(message) {
         { role: 'user', content: message }
       ],
       temperature: 0.7,
+    }).catch(error => {
+      // Gestion spécifique des erreurs de l'API Anthropic
+      throw createClaudeApiError(
+        `Erreur lors de la communication avec l'API Claude: ${error.message}`,
+        error
+      );
     });
     
     log.info(`Réponse reçue: ${response.id}`);
@@ -57,15 +94,37 @@ async function processMessage(message) {
       usage: response.usage
     };
   } catch (error) {
+    // Si c'est déjà une AppError, la propager
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    // Sinon, créer une nouvelle erreur standardisée
     log.error('Erreur lors du traitement du message:', error);
-    throw new Error(`Erreur API Claude: ${error.message}`);
+    throw createClaudeApiError(
+      'Erreur lors du traitement du message par Claude',
+      error
+    );
   }
 }
-
 
 // Fonction spécifique pour synthétiser les emails Gmail
 async function summarizeGmailEmails(emails, searchQuery = '') {
   try {
+    // Validation des entrées
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      throw new AppError(
+        'Les emails doivent être fournis sous forme de tableau non vide',
+        ErrorTypes.VALIDATION,
+        400,
+        { 
+          receivedType: typeof emails, 
+          isArray: Array.isArray(emails),
+          emailsCount: emails ? emails.length : 0
+        }
+      );
+    }
+    
     log.info(`Synthèse des emails Gmail${searchQuery ? ` sur le sujet: ${searchQuery}` : ''}`);    
     
     const systemPrompt = `Vous êtes un assistant professionnel qui synthétise efficacement les emails Gmail.
@@ -115,14 +174,18 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.3,
+    }).catch(error => {
+      // Gestion spécifique des erreurs de l'API Anthropic
+      throw createClaudeApiError(
+        `Erreur lors de la génération de la synthèse des emails: ${error.message}`,
+        error
+      );
     });
     
     log.info(`Synthèse des emails Gmail générée: ${response.id}`);
     // Vérifier le contenu de la réponse
     const responseText = response.content[0].text;
     log.info(`Longueur de la réponse: ${responseText.length} caractères`);
-    log.info(`Début de la réponse: ${responseText.substring(0, 100)}...`);
-    log.info(`Réponse complète: ${responseText}`);
     
     // Assainir la réponse pour éviter les problèmes de sérialisation JSON
     // Remplacer les caractères problématiques par des espaces
@@ -137,8 +200,17 @@ async function summarizeGmailEmails(emails, searchQuery = '') {
       usage: response.usage
     };
   } catch (error) {
+    // Si c'est déjà une AppError, la propager
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    // Sinon, créer une nouvelle erreur standardisée
     log.error('Erreur lors de la synthèse des emails Gmail:', error);
-    throw new Error(`Erreur API Claude: ${error.message}`);
+    throw createClaudeApiError(
+      'Erreur lors de la génération de la synthèse des emails',
+      error
+    );
   }
 }
 

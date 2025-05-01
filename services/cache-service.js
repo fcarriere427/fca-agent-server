@@ -1,5 +1,6 @@
 // FCA-Agent - Service de gestion du cache
 const { createModuleLogger } = require('../utils/logger');
+const { AppError, ErrorTypes } = require('../utils/error');
 const MODULE_NAME = 'SERVER:SERVICES:CACHE-SERVICE';
 const log = createModuleLogger(MODULE_NAME);
 
@@ -136,6 +137,15 @@ function set(value, options = {}) {
  * @returns {Object|null} - Entrée du cache ou null si non trouvée
  */
 function get(id, updateStats = true) {
+  // Validation de l'ID
+  if (!id || typeof id !== 'string') {
+    log.warn(`Cache - ID invalide: ${id}`);
+    if (updateStats) {
+      cache.stats.misses++;
+    }
+    return null;
+  }
+  
   // Vérifier si l'entrée existe
   if (!cache.entries[id]) {
     if (updateStats) {
@@ -272,13 +282,29 @@ function cacheResponse(response, metadata = {}, ttl = null) {
  * @returns {string|null} - Réponse complète ou null si non trouvée
  */
 function getCachedResponse(responseId) {
-  const entry = get(responseId);
-  
-  if (!entry) {
+  if (!responseId || typeof responseId !== 'string') {
+    log.warn(`Cache - ID de réponse invalide: ${responseId}`);
     return null;
   }
   
-  return entry.value;
+  try {
+    const entry = get(responseId);
+    
+    if (!entry) {
+      return null;
+    }
+    
+    // Vérifier si la réponse a le type correct
+    if (entry.metadata && entry.metadata.type !== 'response') {
+      log.warn(`Cache - Entrée de type incorrect: ${responseId}, type=${entry.metadata.type}`);
+      return null;
+    }
+    
+    return entry.value;
+  } catch (error) {
+    log.error(`Cache - Erreur lors de la récupération de la réponse ${responseId}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -358,25 +384,38 @@ function listKeys(activeOnly = true) {
  * @returns {boolean} - Vrai si l'entrée a été renouvelée
  */
 function renewExpiry(id, ttl = null) {
-  if (!cache.entries[id]) {
+  // Validation de l'ID
+  if (!id || typeof id !== 'string') {
+    log.warn(`Cache - ID invalide pour le renouvellement: ${id}`);
     return false;
   }
   
-  const actualTTL = ttl || cache.config.defaultTTL;
-  const now = Date.now();
+  // Vérifier si l'entrée existe
+  if (!cache.entries[id]) {
+    log.debug(`Cache - Entrée non trouvée pour le renouvellement: ${id}`);
+    return false;
+  }
   
-  // Mettre à jour l'heure d'expiration
-  cache.entries[id].expiry = now + actualTTL;
-  cache.entries[id].metadata.ttl = actualTTL;
-  
-  log.debug(`Cache - Expiration renouvelée: ${id}, nouvelle expiration dans ${actualTTL/1000}s`);
-  
-  // Reprogrammer la suppression automatique
-  setTimeout(() => {
-    remove(id);
-  }, actualTTL);
-  
-  return true;
+  try {
+    const actualTTL = ttl || cache.config.defaultTTL;
+    const now = Date.now();
+    
+    // Mettre à jour l'heure d'expiration
+    cache.entries[id].expiry = now + actualTTL;
+    cache.entries[id].metadata.ttl = actualTTL;
+    
+    log.debug(`Cache - Expiration renouvelée: ${id}, nouvelle expiration dans ${actualTTL/1000}s`);
+    
+    // Reprogrammer la suppression automatique
+    setTimeout(() => {
+      remove(id);
+    }, actualTTL);
+    
+    return true;
+  } catch (error) {
+    log.error(`Cache - Erreur lors du renouvellement de l'expiration de ${id}:`, error);
+    return false;
+  }
 }
 
 // Initialiser le nettoyage périodique

@@ -1,5 +1,6 @@
 // FCA-Agent - Utilitaire de formatage des réponses API
 const { createModuleLogger } = require('./logger');
+const { AppError, ErrorTypes } = require('./error');
 const MODULE_NAME = 'UTILS:API-RESPONSE';
 const log = createModuleLogger(MODULE_NAME);
 
@@ -62,6 +63,28 @@ function error(res, message = 'Une erreur est survenue', statusCode = 400, error
 }
 
 /**
+ * Gère les erreurs AppError et envoie une réponse formatée
+ * @param {object} res - Objet response d'Express
+ * @param {AppError} err - Objet d'erreur AppError
+ * @returns {object} Réponse d'erreur formatée
+ */
+function appError(res, err) {
+  const errorResponse = err.toJSON();
+  
+  log.error('Erreur AppError traitée', { 
+    type: err.type,
+    message: err.message,
+    statusCode: err.statusCode,
+    details: err.details ? 'Présents' : 'Aucun'
+  });
+  
+  return res.status(err.statusCode).json({
+    success: false,
+    error: errorResponse
+  });
+}
+
+/**
  * Gère les erreurs système et envoie une réponse formatée
  * @param {object} res - Objet response d'Express
  * @param {Error} err - Objet d'erreur
@@ -69,6 +92,11 @@ function error(res, message = 'Une erreur est survenue', statusCode = 400, error
  * @returns {object} Réponse d'erreur formatée
  */
 function serverError(res, err, statusCode = 500) {
+  // Si c'est déjà une AppError, utiliser la fonction appError
+  if (err instanceof AppError) {
+    return appError(res, err);
+  }
+  
   // Journaliser l'erreur complète mais ne pas l'exposer au client
   log.error('Erreur serveur', { 
     message: err.message,
@@ -93,10 +121,29 @@ function errorHandler() {
       error: err.message
     });
     
+    // Vérifier si c'est une AppError
+    if (err instanceof AppError) {
+      return appError(res, err);
+    }
+    
     // Déterminer le code HTTP approprié
     let statusCode = err.statusCode || 500;
     
-    // Formater et renvoyer l'erreur
+    // Traitement des erreurs spécifiques
+    if (err.name === 'ValidationError') {
+      // Erreurs de validation (par exemple, mongoose ou joi)
+      return error(res, 'Erreur de validation', 400, {
+        validationErrors: err.details || err.errors || err.message
+      });
+    } else if (err.name === 'UnauthorizedError' || err.name === 'JsonWebTokenError') {
+      // Erreurs d'authentification JWT
+      return error(res, 'Erreur d\'authentification', 401);
+    } else if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+      // Erreurs de connexion réseau
+      return error(res, 'Erreur de connexion à un service externe', 503);
+    }
+    
+    // Pour toutes les autres erreurs, utiliser serverError
     return serverError(res, err, statusCode);
   };
 }
@@ -104,6 +151,7 @@ function errorHandler() {
 module.exports = {
   success,
   error,
+  appError,
   serverError,
   errorHandler
 };

@@ -50,6 +50,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev', { stream: { write: message => log.info(`${message.trim()}`) } }));
 
+// Importation du module d'erreurs
+const { AppError, ErrorTypes } = require('./utils/error');
+
 // Importation des services
 const taskService = require('./services/task-service');
 
@@ -100,18 +103,23 @@ app.use('*', (req, res) => {
 // Middleware de gestion centralisée des erreurs
 app.use((err, req, res, next) => {
   // Journalisation détaillée de l'erreur
-  log.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  log.error(`${err.statusCode || err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
   
   // Gestion spécifique des erreurs de routing (path-to-regexp)
   if (err.message && (err.message.includes('pathToRegexpError') || err.message.includes('Missing parameter'))) {
     log.error('Erreur de routing détectée:', err);
-    return apiResponse.error(res, 'Erreur de routage: URL invalide', 400, {
-      detail: 'L\'URL demandée contient des caractères ou un format incompatible avec le routeur.'
-    });
+    const routingError = new AppError(
+      'Erreur de routage: URL invalide',
+      ErrorTypes.VALIDATION,
+      400,
+      { detail: 'L\'URL demandée contient des caractères ou un format incompatible avec le routeur.' },
+      err
+    );
+    return apiResponse.appError(res, routingError);
   }
   
   // Utiliser notre gestionnaire standardisé pour toutes les autres erreurs
-  return apiResponse.serverError(res, err, err.status || 500);
+  return apiResponse.serverError(res, err, err.statusCode || err.status || 500);
 });
 
 // Initialisation de la base de données et démarrage du serveur

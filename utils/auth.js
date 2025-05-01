@@ -4,6 +4,7 @@ const { createModuleLogger } = require('./logger');
 const MODULE_NAME = 'UTILS:AUTH-SIMPLE';
 const log = createModuleLogger(MODULE_NAME);
 const apiResponse = require('./api-response');
+const { AppError, ErrorTypes, createAuthenticationError, catchErrors } = require('./error');
 
 /**
  * Middleware qui vérifie si la requête contient la clé API valide
@@ -20,9 +21,12 @@ const authMiddleware = (req, res, next) => {
     
     if (!apiKey || apiKey.trim() === '') {
       log.error('Erreur de configuration: apiKey non définie');
-      return apiResponse.error(res, 'Erreur de configuration serveur', 500, {
-        detail: 'Clé API non configurée'
-      });
+      throw new AppError(
+        'Clé API non configurée sur le serveur',
+        ErrorTypes.CONFIG,
+        500,
+        { configKey: 'apiKey' }
+      );
     }
     
     // Vérifier l'en-tête API-Key ou Authorization
@@ -44,8 +48,9 @@ const authMiddleware = (req, res, next) => {
     // Si aucune clé n'est trouvée ou si elle ne correspond pas
     if (!requestApiKey || requestApiKey !== apiKey) {
       log.info('Accès refusé: clé API invalide ou absente');
-      return apiResponse.error(res, 'Authentification requise', 401, {
-        authenticated: false
+      throw createAuthenticationError('Authentification requise', {
+        authenticated: false,
+        path: reqPath
       });
     }
     
@@ -53,10 +58,18 @@ const authMiddleware = (req, res, next) => {
     log.info('Authentification validée');
     next();
   } catch (error) {
-    log.error(`Erreur dans le middleware: ${error.message}`);
-    return apiResponse.error(res, 'Erreur d\'authentification', 401, {
-      authenticated: false
-    });
+    // Vérifier si c'est déjà une AppError
+    if (error instanceof AppError) {
+      return apiResponse.appError(res, error);
+    }
+    
+    // Sinon, créer une erreur d'authentification standardisée
+    log.error(`Erreur dans le middleware: ${error.message}`, error);
+    const authError = createAuthenticationError(
+      'Erreur d\'authentification',
+      { path: reqPath }
+    );
+    return apiResponse.appError(res, authError);
   }
 };
 
@@ -64,40 +77,46 @@ const authMiddleware = (req, res, next) => {
  * Route Express pour vérifier si une clé API est valide
  * Utilisée principalement par le client pour tester son authentification
  */
-const checkApiKey = (req, res) => {
+const checkApiKey = catchErrors(async (req, res) => {
   log.info('Vérification de la clé API');
   
-  try {
-    // Récupérer la clé API depuis la configuration centralisée
-    const apiKey = config.get('apiKey');
-    
-    // Vérifier l'en-tête API-Key ou Authorization
-    const requestApiKey = req.headers['api-key'] || 
-                         (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
-                           ? req.headers.authorization.substring(7) 
-                           : null);
-    
-    // Log limité pour sécurité
-    if (requestApiKey) {
-      const keyStart = requestApiKey.substring(0, 3);
-      const keyEnd = requestApiKey.substring(requestApiKey.length - 3);
-      log.info(`API Key reçue: ${keyStart}...${keyEnd}`);
-    } else {
-      log.info('API Key: absente');
-    }
-    
-    if (!requestApiKey || requestApiKey !== apiKey) {
-      log.info('Clé API invalide ou absente');
-      return apiResponse.success(res, { authenticated: false }, 200, 'Clé API invalide');
-    }
-    
-    log.info('Clé API valide');
-    return apiResponse.success(res, { authenticated: true }, 200, 'Clé API valide');
-  } catch (error) {
-    log.error('Erreur lors de la vérification:', error);
-    return apiResponse.serverError(res, error);
+  // Récupérer la clé API depuis la configuration centralisée
+  const apiKey = config.get('apiKey');
+  
+  // Vérifier si la clé API est configurée
+  if (!apiKey || apiKey.trim() === '') {
+    log.error('Erreur de configuration: apiKey non définie');
+    throw new AppError(
+      'Clé API non configurée sur le serveur',
+      ErrorTypes.CONFIG,
+      500,
+      { configKey: 'apiKey' }
+    );
   }
-};
+  
+  // Vérifier l'en-tête API-Key ou Authorization
+  const requestApiKey = req.headers['api-key'] || 
+                       (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                         ? req.headers.authorization.substring(7) 
+                         : null);
+  
+  // Log limité pour sécurité
+  if (requestApiKey) {
+    const keyStart = requestApiKey.substring(0, 3);
+    const keyEnd = requestApiKey.substring(requestApiKey.length - 3);
+    log.info(`API Key reçue: ${keyStart}...${keyEnd}`);
+  } else {
+    log.info('API Key: absente');
+  }
+  
+  if (!requestApiKey || requestApiKey !== apiKey) {
+    log.info('Clé API invalide ou absente');
+    return apiResponse.success(res, { authenticated: false }, 200, 'Clé API invalide');
+  }
+  
+  log.info('Clé API valide');
+  return apiResponse.success(res, { authenticated: true }, 200, 'Clé API valide');
+});
 
 // Configuration des routes d'authentification pour Express
 const setupAuthRoutes = (router) => {
