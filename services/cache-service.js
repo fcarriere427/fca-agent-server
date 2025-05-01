@@ -1,7 +1,7 @@
 // FCA-Agent - Service de gestion du cache
 const { createModuleLogger } = require('../utils/logger');
 const { AppError, ErrorTypes } = require('../utils/error');
-const MODULE_NAME = 'SERVER:SERVICES:CACHE-SERVICE';
+const MODULE_NAME = 'SERVICES:CACHE-SERVICE';
 const log = createModuleLogger(MODULE_NAME);
 
 // Configuration par défaut du cache

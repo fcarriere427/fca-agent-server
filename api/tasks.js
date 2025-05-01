@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
-const MODULE_NAME = 'SERVER:API:TASKS';
+const MODULE_NAME = 'API:TASKS';
 const log = createModuleLogger(MODULE_NAME);
 const { authMiddleware } = require('../utils/auth');
 const apiResponse = require('../utils/api-response');

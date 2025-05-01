@@ -4,7 +4,7 @@ const { createModuleLogger } = require('../utils/logger');
 const { AppError, ErrorTypes, createTaskExecutionError, asyncErrorHandler } = require('../utils/error');
 const cacheService = require('./cache-service');
 const dbUtils = require('../utils/db-utils');
-const MODULE_NAME = 'SERVER:SERVICES:TASK-SERVICE';
+const MODULE_NAME = 'SERVICES:TASK-SERVICE';
 const log = createModuleLogger(MODULE_NAME);
 
 /**
