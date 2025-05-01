@@ -1,9 +1,9 @@
 // FCA-Agent - Service de gestion des tâches
-const { getDb } = require('../db/setup');
 const claudeService = require('./claude-service');
 const { createModuleLogger } = require('../utils/logger');
-const { AppError, ErrorTypes, createDatabaseError, createTaskExecutionError, asyncErrorHandler } = require('../utils/error');
+const { AppError, ErrorTypes, createTaskExecutionError, asyncErrorHandler } = require('../utils/error');
 const cacheService = require('./cache-service');
+const dbUtils = require('../utils/db-utils');
 const MODULE_NAME = 'SERVER:SERVICES:TASK-SERVICE';
 const log = createModuleLogger(MODULE_NAME);
 
@@ -15,48 +15,42 @@ const log = createModuleLogger(MODULE_NAME);
  * @returns {Promise<Object>} - Tâche créée avec son ID
  */
 async function createTask(userId, type, data) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Validation des entrées
-      if (!userId) {
-        return reject(new AppError('ID utilisateur requis', ErrorTypes.VALIDATION));
-      }
-      
-      if (!type) {
-        return reject(new AppError('Type de tâche requis', ErrorTypes.VALIDATION));
-      }
-      
-      log.info(`Création d'une tâche: ${type}`);
-      
-      const db = getDb();
-      db.run(
-        'INSERT INTO tasks (user_id, type, status, input) VALUES (?, ?, ?, ?)',
-        [userId, type, 'pending', JSON.stringify(data)],
-        function(err) {
-          if (err) {
-            log.error('Erreur lors de la création de la tâche:', err);
-            return reject(createDatabaseError(
-              `Erreur lors de la création de la tâche: ${type}`,
-              err
-            ));
-          }
-          
-          const taskId = this.lastID;
-          log.info(`Nouvelle tâche créée: ${type} (id: ${taskId})`);
-          resolve({ taskId, type, status: 'pending' });
-        }
-      );
-    } catch (error) {
-      log.error('Exception lors de la création de la tâche:', error);
-      reject(new AppError(
-        'Exception lors de la création de la tâche', 
-        ErrorTypes.SYSTEM, 
-        500, 
-        { type }, 
-        error
-      ));
+  try {
+    // Validation des entrées
+    if (!userId) {
+      throw new AppError('ID utilisateur requis', ErrorTypes.VALIDATION);
     }
-  });
+    
+    if (!type) {
+      throw new AppError('Type de tâche requis', ErrorTypes.VALIDATION);
+    }
+    
+    log.info(`Création d'une tâche: ${type}`);
+    
+    const result = await dbUtils.run(
+      'INSERT INTO tasks (user_id, type, status, input) VALUES (?, ?, ?, ?)',
+      [userId, type, 'pending', JSON.stringify(data)]
+    );
+    
+    const taskId = result.lastID;
+    log.info(`Nouvelle tâche créée: ${type} (id: ${taskId})`);
+    return { taskId, type, status: 'pending' };
+  } catch (error) {
+    log.error('Exception lors de la création de la tâche:', error);
+    
+    // Transformer en AppError si ce n'en est pas déjà une
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    throw new AppError(
+      'Exception lors de la création de la tâche', 
+      ErrorTypes.SYSTEM, 
+      500, 
+      { type }, 
+      error
+    );
+  }
 }
 
 /**
@@ -67,69 +61,62 @@ async function createTask(userId, type, data) {
  * @returns {Promise<void>}
  */
 async function updateTaskStatus(taskId, status, result) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Validation des paramètres
-      if (!taskId) {
-        return reject(new AppError('ID de tâche requis', ErrorTypes.VALIDATION));
-      }
-      
-      if (!status) {
-        return reject(new AppError('Statut requis', ErrorTypes.VALIDATION));
-      }
-      
-      // Vérification des valeurs valides pour le statut
-      const validStatuses = ['pending', 'completed', 'error', 'canceled'];
-      if (!validStatuses.includes(status)) {
-        return reject(new AppError(
-          `Statut invalide: ${status}. Valeurs valides: ${validStatuses.join(', ')}`,
-          ErrorTypes.VALIDATION,
-          400,
-          { taskId, providedStatus: status, validStatuses }
-        ));
-      }
-      
-      log.info(`Mise à jour du statut de la tâche ${taskId}: ${status}`);
-      
-      const db = getDb();
-      db.run(
-        'UPDATE tasks SET status = ?, result = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [status, JSON.stringify(result), taskId],
-        function(err) {
-          if (err) {
-            log.error(`Erreur lors de la mise à jour de la tâche ${taskId}:`, err);
-            return reject(createDatabaseError(
-              `Erreur lors de la mise à jour de la tâche ${taskId}`,
-              err
-            ));
-          }
-          
-          // Vérifier si la mise à jour a affecté une ligne
-          if (this.changes === 0) {
-            log.warn(`Aucune tâche trouvée avec l'ID ${taskId}`);
-            return reject(new AppError(
-              `Tâche non trouvée: ${taskId}`,
-              ErrorTypes.NOT_FOUND,
-              404,
-              { taskId }
-            ));
-          }
-          
-          log.info(`Tâche ${taskId} mise à jour avec succès`);
-          resolve();
-        }
-      );
-    } catch (error) {
-      log.error(`Exception lors de la mise à jour de la tâche ${taskId}:`, error);
-      reject(new AppError(
-        `Exception lors de la mise à jour de la tâche ${taskId}`,
-        ErrorTypes.SYSTEM,
-        500,
-        { taskId, status },
-        error
-      ));
+  try {
+    // Validation des paramètres
+    if (!taskId) {
+      throw new AppError('ID de tâche requis', ErrorTypes.VALIDATION);
     }
-  });
+    
+    if (!status) {
+      throw new AppError('Statut requis', ErrorTypes.VALIDATION);
+    }
+    
+    // Vérification des valeurs valides pour le statut
+    const validStatuses = ['pending', 'completed', 'error', 'canceled'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError(
+        `Statut invalide: ${status}. Valeurs valides: ${validStatuses.join(', ')}`,
+        ErrorTypes.VALIDATION,
+        400,
+        { taskId, providedStatus: status, validStatuses }
+      );
+    }
+    
+    log.info(`Mise à jour du statut de la tâche ${taskId}: ${status}`);
+    
+    const updateResult = await dbUtils.run(
+      'UPDATE tasks SET status = ?, result = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, JSON.stringify(result), taskId]
+    );
+    
+    // Vérifier si la mise à jour a affecté une ligne
+    if (updateResult.changes === 0) {
+      log.warn(`Aucune tâche trouvée avec l'ID ${taskId}`);
+      throw new AppError(
+        `Tâche non trouvée: ${taskId}`,
+        ErrorTypes.NOT_FOUND,
+        404,
+        { taskId }
+      );
+    }
+    
+    log.info(`Tâche ${taskId} mise à jour avec succès`);
+  } catch (error) {
+    log.error(`Exception lors de la mise à jour de la tâche ${taskId}:`, error);
+    
+    // Transformer en AppError si ce n'en est pas déjà une
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    throw new AppError(
+      `Exception lors de la mise à jour de la tâche ${taskId}`,
+      ErrorTypes.SYSTEM,
+      500,
+      { taskId, status },
+      error
+    );
+  }
 }
 
 /**
@@ -165,14 +152,7 @@ async function executeTask(task, data) {
             { taskId: task.taskId, taskType: task.type }
           );
         }
-        result = await claudeService.processMessage(data.input).catch(err => {
-          throw createTaskExecutionError(
-            'Erreur lors du traitement du message utilisateur',
-            task.taskId,
-            task.type,
-            err
-          );
-        });
+        result = await claudeService.processMessage(data.input);
         break;
       case 'gmail-summary':
         if (!data || !data.emails) {
@@ -183,14 +163,7 @@ async function executeTask(task, data) {
             { taskId: task.taskId, taskType: task.type }
           );
         }
-        result = await claudeService.summarizeGmailEmails(data.emails, data.searchQuery).catch(err => {
-          throw createTaskExecutionError(
-            'Erreur lors de la création du résumé des emails',
-            task.taskId,
-            task.type,
-            err
-          );
-        });
+        result = await claudeService.summarizeGmailEmails(data.emails, data.searchQuery);
         break;
       default:
         throw new AppError(
@@ -288,42 +261,46 @@ async function executeTask(task, data) {
  * @returns {Promise<Object>} - Liste des tâches et métadonnées de pagination
  */
 async function getTasksList(userId, limit = 10, offset = 0) {
-  return new Promise((resolve, reject) => {
-    try {
-      log.info(`Récupération des tâches pour l'utilisateur ${userId} (limit: ${limit}, offset: ${offset})`);
-      
-      const db = getDb();
-      db.all(
-        'SELECT id, type, status, created_at, completed_at FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-        [userId, limit, offset],
-        (err, tasks) => {
-          if (err) {
-            log.error('Erreur lors de la récupération des tâches:', err);
-            return reject(err);
-          }
-          
-          // Compter le nombre total de tâches
-          db.get('SELECT COUNT(*) as count FROM tasks WHERE user_id = ?', [userId], (err, result) => {
-            if (err) {
-              log.error('Erreur lors du comptage des tâches:', err);
-              return reject(err);
-            }
-            
-            log.info(`${tasks.length} tâches récupérées (total: ${result.count})`);
-            resolve({
-              tasks,
-              total: result.count,
-              limit,
-              offset
-            });
-          });
-        }
-      );
-    } catch (error) {
-      log.error('Exception lors de la récupération des tâches:', error);
-      reject(error);
+  try {
+    log.info(`Récupération des tâches pour l'utilisateur ${userId} (limit: ${limit}, offset: ${offset})`);
+    
+    // Récupération des tâches avec pagination
+    const tasks = await dbUtils.query(
+      'SELECT id, type, status, created_at, completed_at FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [userId, limit, offset]
+    );
+    
+    // Comptage du nombre total de tâches
+    const countResult = await dbUtils.queryOne(
+      'SELECT COUNT(*) as count FROM tasks WHERE user_id = ?', 
+      [userId]
+    );
+    
+    const total = countResult ? countResult.count : 0;
+    log.info(`${tasks.length} tâches récupérées (total: ${total})`);
+    
+    return {
+      tasks,
+      total,
+      limit,
+      offset
+    };
+  } catch (error) {
+    log.error('Exception lors de la récupération des tâches:', error);
+    
+    // Transformer en AppError si ce n'en est pas déjà une
+    if (error instanceof AppError) {
+      throw error;
     }
-  });
+    
+    throw new AppError(
+      'Erreur lors de la récupération des tâches',
+      ErrorTypes.SYSTEM,
+      500,
+      { userId, limit, offset },
+      error
+    );
+  }
 }
 
 /**
@@ -333,67 +310,61 @@ async function getTasksList(userId, limit = 10, offset = 0) {
  * @returns {Promise<Object>} - Détails de la tâche
  */
 async function getTaskDetails(taskId, userId) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Validation des paramètres
-      if (!taskId) {
-        return reject(new AppError('ID de tâche requis', ErrorTypes.VALIDATION));
-      }
-      
-      if (!userId) {
-        return reject(new AppError('ID utilisateur requis', ErrorTypes.VALIDATION));
-      }
-      
-      log.info(`Récupération des détails de la tâche ${taskId}`);
-      
-      const db = getDb();
-      db.get(
-        'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
-        [taskId, userId],
-        (err, task) => {
-          if (err) {
-            log.error('Erreur lors de la récupération de la tâche:', err);
-            return reject(createDatabaseError(
-              `Erreur lors de la récupération de la tâche ${taskId}`,
-              err
-            ));
-          }
-          
-          if (!task) {
-            log.warn(`Tâche ${taskId} non trouvée pour l'utilisateur ${userId}`);
-            return reject(new AppError(
-              `Tâche ${taskId} non trouvée`,
-              ErrorTypes.NOT_FOUND,
-              404,
-              { taskId, userId }
-            ));
-          }
-          
-          // Conversion des chaînes JSON en objets
-          try {
-            if (task.input) task.input = JSON.parse(task.input);
-            if (task.result) task.result = JSON.parse(task.result);
-          } catch (jsonError) {
-            log.warn('Erreur lors de la conversion JSON pour la tâche', taskId, jsonError);
-            // On ne rejette pas la promesse ici, on continue avec les données brutes
-            // mais on ajoute une note dans les logs pour faciliter le débogage
-          }
-          
-          log.info(`Détails de la tâche ${taskId} récupérés avec succès`);
-          resolve(task);
-        }
-      );
-    } catch (error) {
-      log.error(`Exception lors de la récupération de la tâche ${taskId}:`, error);
-      reject(new AppError(
-        `Erreur système lors de la récupération de la tâche ${taskId}`,
-        ErrorTypes.SYSTEM,
-        500,
-        { taskId, userId },
-        error
-      ));
+  try {
+    // Validation des paramètres
+    if (!taskId) {
+      throw new AppError('ID de tâche requis', ErrorTypes.VALIDATION);
     }
-  });
+    
+    if (!userId) {
+      throw new AppError('ID utilisateur requis', ErrorTypes.VALIDATION);
+    }
+    
+    log.info(`Récupération des détails de la tâche ${taskId}`);
+    
+    const task = await dbUtils.queryOne(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ?',
+      [taskId, userId]
+    );
+    
+    if (!task) {
+      log.warn(`Tâche ${taskId} non trouvée pour l'utilisateur ${userId}`);
+      throw new AppError(
+        `Tâche ${taskId} non trouvée`,
+        ErrorTypes.NOT_FOUND,
+        404,
+        { taskId, userId }
+      );
+    }
+    
+    // Conversion des chaînes JSON en objets
+    try {
+      if (task.input) task.input = JSON.parse(task.input);
+      if (task.result) task.result = JSON.parse(task.result);
+    } catch (jsonError) {
+      log.warn('Erreur lors de la conversion JSON pour la tâche', taskId, jsonError);
+      // On ne rejette pas la promesse ici, on continue avec les données brutes
+      // mais on ajoute une note dans les logs pour faciliter le débogage
+    }
+    
+    log.info(`Détails de la tâche ${taskId} récupérés avec succès`);
+    return task;
+  } catch (error) {
+    log.error(`Exception lors de la récupération de la tâche ${taskId}:`, error);
+    
+    // Transformer en AppError si ce n'en est pas déjà une
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    throw new AppError(
+      `Erreur système lors de la récupération de la tâche ${taskId}`,
+      ErrorTypes.SYSTEM,
+      500,
+      { taskId, userId },
+      error
+    );
+  }
 }
 
 /**
@@ -433,15 +404,17 @@ function getCacheStats() {
   return cacheService.getStats();
 }
 
-// Exporter les fonctions du service
+// Exporter les fonctions du service avec gestion d'erreurs async standardisée
 module.exports = {
-  createTask,
-  updateTaskStatus,
-  executeTask,
-  getTasksList,
-  getTaskDetails,
+  createTask: asyncErrorHandler(createTask, ErrorTypes.SYSTEM),
+  updateTaskStatus: asyncErrorHandler(updateTaskStatus, ErrorTypes.SYSTEM),
+  executeTask: asyncErrorHandler(executeTask, ErrorTypes.TASK_EXECUTION),
+  getTasksList: asyncErrorHandler(getTasksList, ErrorTypes.SYSTEM),
+  getTaskDetails: asyncErrorHandler(getTaskDetails, ErrorTypes.SYSTEM),
   getCachedResponse,
   getCacheKeys,
   cacheResponse,
-  getCacheStats
+  getCacheStats,
+  // Exporter directement la référence au cache de réponses pour les routes JSONP
+  responseCache: cacheService
 };
