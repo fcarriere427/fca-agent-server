@@ -1,6 +1,6 @@
 // FCA-Agent - Utilitaire de formatage des réponses API
 const { createModuleLogger } = require('./logger');
-const MODULE_NAME = 'SERVER:UTILS:API-RESPONSE';
+const MODULE_NAME = 'UTILS:API-RESPONSE';
 const log = createModuleLogger(MODULE_NAME);
 
 /**

@@ -8,7 +8,7 @@ const {
   logResponseRequest,
   logClaudeResponse 
 } = require('../utils/logger');
-const MODULE_NAME = 'SERVER:API:TASKS';
+const MODULE_NAME = 'API:TASKS';
 const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');

@@ -8,7 +8,7 @@ const config = require('./index');
 const { createModuleLogger } = require('../utils/logger');
 
 // Initialiser le logger
-const MODULE_NAME = 'SERVER:CONFIG:SERVER';
+const MODULE_NAME = 'CONFIG:SERVER';
 const log = createModuleLogger(MODULE_NAME);
 
 /**

@@ -1,7 +1,7 @@
 // FCA-Agent - Système d'authentification simplifié par clé API
 const config = require('../config');
 const { createModuleLogger } = require('./logger');
-const MODULE_NAME = 'SERVER:UTILS:AUTH-SIMPLE';
+const MODULE_NAME = 'UTILS:AUTH-SIMPLE';
 const log = createModuleLogger(MODULE_NAME);
 const apiResponse = require('./api-response');
 

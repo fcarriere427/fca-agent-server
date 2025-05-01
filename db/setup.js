@@ -2,7 +2,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const { createModuleLogger } = require('../utils/logger');
-const MODULE_NAME = 'SERVER:DB:SETUP';
+const MODULE_NAME = 'DB:SETUP';
 const log = createModuleLogger(MODULE_NAME);
 
 // Chemin vers la base de données

@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
-const MODULE_NAME = 'SERVER:API:JSONP';
+const MODULE_NAME = 'API:JSONP';
 const log = createModuleLogger(MODULE_NAME);
 const apiResponse = require('../utils/api-response');
 

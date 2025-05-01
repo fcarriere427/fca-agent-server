@@ -13,7 +13,7 @@ const dotenv = require('dotenv');
 const { createModuleLogger } = require('../utils/logger');
 
 // Initialiser le logger
-const MODULE_NAME = 'SERVER:CONFIG';
+const MODULE_NAME = 'CONFIG';
 const log = createModuleLogger(MODULE_NAME);
 
 // Configuration par défaut

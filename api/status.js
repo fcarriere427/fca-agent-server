@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
-const MODULE_NAME = 'SERVER:API:STATUS';
+const MODULE_NAME = 'API:STATUS';
 const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
 const apiResponse = require('../utils/api-response');
