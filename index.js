@@ -50,6 +50,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev', { stream: { write: message => log.info(`${message.trim()}`) } }));
 
+// Importation des services
+const taskService = require('./services/task-service');
+
 // Importation des routes
 const authRoutes = require('./api/auth');
 const statusRoutes = require('./api/status');
@@ -74,8 +77,8 @@ app.use('/api', (req, res, next) => {
 app.use('/api/status', statusRoutes);
 app.use('/api/tasks', tasksRoutes.router);
 
-// Partage du cache de réponses
-jsonpRoutes.initializeCache(tasksRoutes.responseCache);
+// Partage du cache de réponses (maintenant depuis le service de tâches)
+jsonpRoutes.initializeCache(taskService.responseCache);
 app.use('/api/jsonp', jsonpRoutes.router);
 
 // Capturer toutes les autres routes API inexistantes

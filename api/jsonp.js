@@ -2,17 +2,18 @@
 const express = require('express');
 const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
-const MODULE_NAME = 'API:JSONP';
+const MODULE_NAME = 'SERVER:API:JSONP';
 const log = createModuleLogger(MODULE_NAME);
 const apiResponse = require('../utils/api-response');
+const taskService = require('../services/task-service');
 
-// Référence au cache de réponse (à récupérer depuis tasks.js)
-let responseCache = {};
-
-// Initialiser le cache en référence à celui de tasks.js
+// Référence au cache de réponse (provenant du service de tâches)
+// Ce service n'est plus nécessaire car nous utilisons directement le cache du service de tâches
+// La méthode est conservée pour compatibilité avec le code existant
 const initializeCache = (cache) => {
-  responseCache = cache;
-  log.info('Initalisation du cache JSONP : OK');
+  log.warn('Méthode initializeCache dépréciée - Utilise directement le cache du service de tâches');
+  // Ne rien faire, puisque nous utilisons directement taskService.responseCache
+  log.info('Initalisation du cache JSONP : OK (via service de tâches)');
 };
 
 // GET /api/jsonp/response/:id - Récupérer une réponse cachée par ID en format JSONP
@@ -23,19 +24,17 @@ router.get('/response/:id', (req, res) => {
     
     log.info(`Requête de réponse reçue pour ID: ${responseId}, callback: ${callback}`);
     
-    // Log du contenu actuel du cache
-    const cacheKeys = Object.keys(responseCache);
-    log.info(`Clés en cache: ${cacheKeys.join(', ')}`);
-    log.info(`Vérification si ${responseId} existe dans le cache: ${responseCache[responseId] ? 'OUI' : 'NON'}`);
+    // Récupérer la réponse du cache via le service de tâches
+    const response = taskService.getCachedResponse(responseId);
     
     // Vérifier si la réponse existe dans le cache
-    if (!responseCache[responseId]) {
+    if (!response) {
       log.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.send(`${callback}({"error": "Réponse non trouvée ou expirée"})`);
     }
     
     // Préparer la réponse en échappant les caractères spéciaux
-    const response = responseCache[responseId]
+    const escapedResponse = response
       .replace(/\\/g, '\\\\')  // Échapper les backslashes
       .replace(/"/g, '\\"')    // Échapper les guillemets
       .replace(/\n/g, '\\n')   // Échapper les sauts de ligne
@@ -44,11 +43,11 @@ router.get('/response/:id', (req, res) => {
       .replace(/\f/g, '\\f');  // Échapper les sauts de page
     
     // Log détaillé de la réponse avant envoi
-    log.info(`Envoi de réponse complète: ID=${responseId}, longueur=${response.length}`);
+    log.info(`Envoi de réponse complète: ID=${responseId}, longueur=${escapedResponse.length}`);
     
     // Envoyer la réponse en format JSONP
     res.setHeader('Content-Type', 'application/javascript');
-    res.send(`${callback}({"response": "${response}"})`);
+    res.send(`${callback}({"response": "${escapedResponse}"})`);
     
     log.info(`Réponse envoyée avec succès pour ${responseId}`);
   } catch (error) {
@@ -61,14 +60,15 @@ router.get('/response/:id', (req, res) => {
 // GET /api/jsonp/status - Vérifier le statut du serveur
 router.get('/status', (req, res) => {
   const callback = req.query.callback || 'handleStatus';
+  const cacheKeys = taskService.getCacheKeys();
   res.setHeader('Content-Type', 'application/javascript');
-  res.send(`${callback}({"status": "ok", "cacheSize": ${Object.keys(responseCache).length}})`);
+  res.send(`${callback}({"status": "ok", "cacheSize": ${cacheKeys.length}})`);
 });
 
 // GET /api/jsonp/cache-keys - Récupérer les clés du cache
 router.get('/cache-keys', (req, res) => {
   const callback = req.query.callback || 'handleCacheKeys';
-  const keys = Object.keys(responseCache);
+  const keys = taskService.getCacheKeys();
   res.setHeader('Content-Type', 'application/javascript');
   res.send(`${callback}({"keys": ${JSON.stringify(keys)}})`);
 });
@@ -77,23 +77,25 @@ router.get('/cache-keys', (req, res) => {
 router.get('/direct-text/:id', (req, res) => {
   try {
     const responseId = req.params.id;
+    const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
+    
+    // Récupérer la réponse du cache via le service de tâches
+    const response = taskService.getCachedResponse(responseId);
     
     // Vérifier si la réponse existe dans le cache
-    if (!responseCache[responseId]) {
-      const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
+    if (!response) {
       directLogger.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.status(404).send('Réponse non trouvée ou expirée');
     }
     
     // Log détaillé de la réponse avant envoi
-    const directLogger = createModuleLogger('SERVER:JSONP:DIRECT');
-    directLogger.info(`Envoi de réponse directe: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    directLogger.info(`Envoi de réponse directe: ID=${responseId}, longueur=${response.length}`);
     
     // Envoyer la réponse en format texte brut
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    res.send(responseCache[responseId]);
+    res.send(response);
     
     directLogger.info(`Réponse directe envoyée avec succès pour ${responseId}`);
   } catch (error) {
@@ -107,17 +109,19 @@ router.get('/direct-text/:id', (req, res) => {
 router.get('/iframe/:id', (req, res) => {
   try {
     const responseId = req.params.id;
+    const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
+    
+    // Récupérer la réponse du cache via le service de tâches
+    const response = taskService.getCachedResponse(responseId);
     
     // Vérifier si la réponse existe dans le cache
-    if (!responseCache[responseId]) {
-      const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
+    if (!response) {
       iframeLogger.error(`Réponse non trouvée dans le cache: ${responseId}`);
       return res.status(404).send('Réponse non trouvée ou expirée');
     }
     
     // Log détaillé de la réponse avant envoi
-    const iframeLogger = createModuleLogger('SERVER:JSONP:IFRAME');
-    iframeLogger.info(`Envoi de réponse HTML: ID=${responseId}, longueur=${responseCache[responseId].length}`);
+    iframeLogger.info(`Envoi de réponse HTML: ID=${responseId}, longueur=${response.length}`);
     
     // Créer une page HTML simple avec la réponse
     const htmlResponse = `
@@ -145,7 +149,7 @@ router.get('/iframe/:id', (req, res) => {
       </head>
       <body>
         <h2>Réponse complète</h2>
-        <pre>${responseCache[responseId].replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+        <pre>${response.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
         <p><small>ID: ${responseId}</small></p>
       </body>
       </html>
@@ -344,7 +348,7 @@ router.get('/simple-page', (req, res) => {
           // Définir la fonction de callback
           window.handleCacheKeys = function(data) {
             if (data.keys && data.keys.length > 0) {
-              document.getElementById('response').textContent = 'Clés en cache (' + data.keys.length + '):\n\n' + data.keys.join('\n');
+              document.getElementById('response').textContent = 'Clés en cache (' + data.keys.length + '):\\n\\n' + data.keys.join('\\n');
               updateStatus('Clés récupérées avec succès: ' + data.keys.length + ' clés trouvées');
               
               // Si un champ de saisie est vide et qu'il y a des clés, suggérer la première
