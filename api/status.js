@@ -5,6 +5,7 @@ const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:STATUS';
 const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
+const apiResponse = require('../utils/api-response');
 
 // GET /api/status - Vérifier l'état du serveur
 router.get('/', async (req, res) => {
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
       const claudeApiKey = process.env.ANTHROPIC_API_KEY;
       const claudeStatus = claudeApiKey ? 'configured' : 'not_configured';
       
-      res.status(200).json({
+      return apiResponse.success(res, {
         status: 'connected',
         version: '0.1.0',
         uptime: process.uptime(),
@@ -31,14 +32,11 @@ router.get('/', async (req, res) => {
         claude_api: claudeStatus,
         timestamp: new Date().toISOString(),
         debug: false  // Explicitement défini comme false
-      });
+      }, 200, 'Serveur en ligne');
     });
   } catch (error) {
     log.warn('Erreur lors de la vérification du statut:', error);
-    res.status(500).json({
-      status: 'error',
-      error: error.message
-    });
+    return apiResponse.serverError(res, error, 500);
   }
 });
 

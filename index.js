@@ -16,6 +16,7 @@ const { createModuleLogger } = require('./utils/logger');
 const MODULE_NAME = 'SERVER:INDEX';
 const log = createModuleLogger(MODULE_NAME);
 const { authMiddleware } = require('./utils/auth');
+const apiResponse = require('./utils/api-response');
 
 // Initialisation
 const app = express();
@@ -80,26 +81,20 @@ app.use('/api/jsonp', jsonpRoutes.router);
 // Capturer toutes les autres routes API inexistantes
 app.use('/api/*', (req, res) => {
   log.warn(`Route API inexistante: ${req.originalUrl}`);
-  res.status(404).json({
-    error: {
-      message: 'Route API non trouvée',
-      path: req.originalUrl
-    }
+  return apiResponse.error(res, 'Route API non trouvée', 404, {
+    path: req.originalUrl
   });
 });
 
 // Capturer toutes les autres requêtes
 app.use('*', (req, res) => {
   log.warn(`Route inexistante: ${req.originalUrl}`);
-  res.status(404).json({
-    error: {
-      message: 'Ressource non trouvée',
-      path: req.originalUrl
-    }
+  return apiResponse.error(res, 'Ressource non trouvée', 404, {
+    path: req.originalUrl
   });
 });
 
-// Gestion des erreurs
+// Middleware de gestion centralisée des erreurs
 app.use((err, req, res, next) => {
   // Journalisation détaillée de l'erreur
   log.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
@@ -107,19 +102,13 @@ app.use((err, req, res, next) => {
   // Gestion spécifique des erreurs de routing (path-to-regexp)
   if (err.message && (err.message.includes('pathToRegexpError') || err.message.includes('Missing parameter'))) {
     log.error('Erreur de routing détectée:', err);
-    return res.status(400).json({
-      error: {
-        message: 'Erreur de routage: URL invalide',
-        detail: 'L\'URL demandée contient des caractères ou un format incompatible avec le routeur.'
-      }
+    return apiResponse.error(res, 'Erreur de routage: URL invalide', 400, {
+      detail: 'L\'URL demandée contient des caractères ou un format incompatible avec le routeur.'
     });
   }
   
-  res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Une erreur interne est survenue'
-    }
-  });
+  // Utiliser notre gestionnaire standardisé pour toutes les autres erreurs
+  return apiResponse.serverError(res, err, err.status || 500);
 });
 
 // Initialisation de la base de données et démarrage du serveur

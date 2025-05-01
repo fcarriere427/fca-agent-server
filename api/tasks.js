@@ -13,6 +13,7 @@ const log = createModuleLogger(MODULE_NAME);
 const { getDb } = require('../db/setup');
 const claudeService = require('../services/claude-service');
 const { authMiddleware } = require('../utils/auth');
+const apiResponse = require('../utils/api-response');
 
 // Stockage temporaire des réponses complètes
 const responseCache = {};
@@ -22,16 +23,8 @@ router.use(authMiddleware);
 
 // GET /api/tasks/hello - Route de test simple
 router.get('/hello', (req, res) => {
-  // Définir les en-têtes CORS pour permettre l'accès depuis n'importe quelle origine
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Envoyer une réponse simple
-  res.send('Hello World - Test de l\'API réussi !');
-  
-  log.info('Route de test /hello appelée avec succès');
+  log.info('Route de test /hello appelée');
+  return apiResponse.success(res, { message: 'Hello World - Test de l\'API réussi !' }, 200, 'Test API réussi');
 });
 
 // POST /api/tasks - Créer une nouvelle tâche
@@ -43,7 +36,7 @@ router.post('/', async (req, res) => {
     
     // Validation
     if (!type) {
-      return res.status(400).json({ error: 'Type de tâche requis' });
+      return apiResponse.error(res, 'Type de tâche requis', 400);
     }
     
     // Enregistrer la tâche dans la base de données
@@ -54,7 +47,7 @@ router.post('/', async (req, res) => {
       async function(err) {
         if (err) {
           log.error('Erreur lors de la création de la tâche:', err);
-          return res.status(500).json({ error: 'Erreur serveur' });
+          return apiResponse.serverError(res, err);
         }
         
         const taskId = this.lastID;
@@ -119,21 +112,21 @@ router.post('/', async (req, res) => {
             }, 10 * 60 * 1000);
             
             // Renvoyer une référence à la réponse complète au lieu de la réponse elle-même
-            res.status(200).json({ 
-              taskId,
-              status,
-              responseId,
-              // Envoyer un court aperçu de la réponse - s'assurer qu'il est correctement encodé
-              preview: safeResponse.substring(0, 100) + '...',
-              fullResponseAvailable: true
-            });
+            return apiResponse.success(res, { 
+            taskId,
+            status,
+            responseId,
+            // Envoyer un court aperçu de la réponse - s'assurer qu'il est correctement encodé
+            preview: safeResponse.substring(0, 100) + '...',
+            fullResponseAvailable: true
+            }, 200, 'Tâche exécutée avec succès');
           } else {
             // Si pas de réponse ou réponse courte, renvoyer directement
-            res.status(200).json({ 
-              taskId,
-              status,
-              result
-            });
+            return apiResponse.success(res, { 
+            taskId,
+            status,
+            result
+            }, 200, 'Tâche exécutée avec succès');
           }
         } catch (error) {
           log.error(`Erreur lors de l'exécution de la tâche ${taskId}:`, error);
@@ -144,16 +137,13 @@ router.post('/', async (req, res) => {
             ['error', JSON.stringify({ error: error.message }), taskId]
           );
           
-          res.status(500).json({ 
-            error: 'Erreur lors de l\'exécution de la tâche',
-            message: error.message
-          });
+          return apiResponse.serverError(res, error, 500);
         }
       }
     );
   } catch (error) {
     log.error('Erreur lors de la création de la tâche:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    return apiResponse.serverError(res, error);
   }
 });
 
@@ -172,17 +162,17 @@ router.get('/', (req, res) => {
       (err, tasks) => {
         if (err) {
           log.error('Erreur lors de la récupération des tâches:', err);
-          return res.status(500).json({ error: 'Erreur serveur' });
+          return apiResponse.serverError(res, err);
         }
         
         // Compter le nombre total de tâches
         db.get('SELECT COUNT(*) as count FROM tasks WHERE user_id = ?', [userId], (err, result) => {
           if (err) {
             log.error('Erreur lors du comptage des tâches:', err);
-            return res.status(500).json({ error: 'Erreur serveur' });
+            return apiResponse.serverError(res, err);
           }
           
-          res.status(200).json({ 
+          return apiResponse.success(res, { 
             tasks,
             total: result.count,
             limit,
@@ -193,7 +183,7 @@ router.get('/', (req, res) => {
     );
   } catch (error) {
     log.error('Erreur lors de la récupération des tâches:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    return apiResponse.serverError(res, error);
   }
 });
 
@@ -213,11 +203,11 @@ router.get('/:id', (req, res) => {
       (err, task) => {
         if (err) {
           log.error('Erreur lors de la récupération de la tâche:', err);
-          return res.status(500).json({ error: 'Erreur serveur' });
+          return apiResponse.serverError(res, err);
         }
         
         if (!task) {
-          return res.status(404).json({ error: 'Tâche non trouvée' });
+          return apiResponse.error(res, 'Tâche non trouvée', 404);
         }
         
         // Conversion des chaînes JSON en objets
@@ -228,12 +218,12 @@ router.get('/:id', (req, res) => {
           log.warn('Erreur lors de la conversion JSON pour la tâche', taskId, error);
         }
         
-        res.status(200).json({ task });
+        return apiResponse.success(res, { task });
       }
     );
   } catch (error) {
     log.error('Erreur lors de la récupération de la tâche:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    return apiResponse.serverError(res, error);
   }
 });
 

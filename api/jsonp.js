@@ -4,6 +4,7 @@ const router = express.Router();
 const { createModuleLogger } = require('../utils/logger');
 const MODULE_NAME = 'SERVER:API:JSONP';
 const log = createModuleLogger(MODULE_NAME);
+const apiResponse = require('../utils/api-response');
 
 // Référence au cache de réponse (à récupérer depuis tasks.js)
 let responseCache = {};

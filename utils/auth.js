@@ -3,6 +3,7 @@ const config = require('../config');
 const { createModuleLogger } = require('./logger');
 const MODULE_NAME = 'SERVER:UTILS:AUTH-SIMPLE';
 const log = createModuleLogger(MODULE_NAME);
+const apiResponse = require('./api-response');
 
 /**
  * Middleware qui vérifie si la requête contient la clé API valide
@@ -19,8 +20,7 @@ const authMiddleware = (req, res, next) => {
     
     if (!apiKey || apiKey.trim() === '') {
       log.error('Erreur de configuration: apiKey non définie');
-      return res.status(500).json({ 
-        error: 'Erreur de configuration serveur',
+      return apiResponse.error(res, 'Erreur de configuration serveur', 500, {
         detail: 'Clé API non configurée'
       });
     }
@@ -44,9 +44,8 @@ const authMiddleware = (req, res, next) => {
     // Si aucune clé n'est trouvée ou si elle ne correspond pas
     if (!requestApiKey || requestApiKey !== apiKey) {
       log.info('Accès refusé: clé API invalide ou absente');
-      return res.status(401).json({ 
-        authenticated: false, 
-        message: 'Authentification requise'
+      return apiResponse.error(res, 'Authentification requise', 401, {
+        authenticated: false
       });
     }
     
@@ -55,9 +54,8 @@ const authMiddleware = (req, res, next) => {
     next();
   } catch (error) {
     log.error(`Erreur dans le middleware: ${error.message}`);
-    return res.status(401).json({ 
-      authenticated: false, 
-      message: 'Erreur d\'authentification'
+    return apiResponse.error(res, 'Erreur d\'authentification', 401, {
+      authenticated: false
     });
   }
 };
@@ -90,14 +88,14 @@ const checkApiKey = (req, res) => {
     
     if (!requestApiKey || requestApiKey !== apiKey) {
       log.info('Clé API invalide ou absente');
-      return res.status(200).json({ authenticated: false });
+      return apiResponse.success(res, { authenticated: false }, 200, 'Clé API invalide');
     }
     
     log.info('Clé API valide');
-    res.status(200).json({ authenticated: true });
+    return apiResponse.success(res, { authenticated: true }, 200, 'Clé API valide');
   } catch (error) {
     log.error('Erreur lors de la vérification:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    return apiResponse.serverError(res, error);
   }
 };
 
