@@ -1,6 +1,9 @@
 // FCA-Agent - Serveur principal (version simplifiée)
 
-require('dotenv').config();
+// Chargement de la configuration centralisée
+const config = require('./config');
+const serverConfig = require('./config/server');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -16,13 +19,13 @@ const { authMiddleware } = require('./utils/auth');
 
 // Initialisation
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.get('port');
 
 // Création du répertoire logs s'il n'existe pas
-const logsDir = path.join(__dirname, 'logs');
+const logsDir = config.get('logDir');
 if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir);
-  log.info(`Répertoire créé: ${logsDir}`);
+  fs.mkdirSync(logsDir, { recursive: true });
+  log.info(`Répertoire de logs créé: ${logsDir}`);
 }
 
 // Configuration des middlewares
@@ -33,7 +36,7 @@ app.use(helmet({
 
 // Configuration CORS pour l'extension Chrome
 app.use(cors({
-  origin: ['chrome-extension://geijajfenikceeemehghgabl61pbded1', 'http://localhost:3001', '*'],
+  origin: config.get('allowedOrigins'),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'API-Key', 'Cookie', 'X-Requested-With']
@@ -125,7 +128,7 @@ setupDatabase()
     log.info('Base de données initialisée avec succès');
     app.listen(PORT, () => {
       log.info(`Serveur FCA-Agent (version simplifiée) démarré sur le port ${PORT}`);
-      log.info(`Environnement: ${process.env.NODE_ENV || 'development'}`);
+      log.info(`Environnement: ${config.get('nodeEnv')}`);
     });
   })
   .catch(err => {

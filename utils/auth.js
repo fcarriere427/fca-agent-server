@@ -1,4 +1,5 @@
 // FCA-Agent - Système d'authentification simplifié par clé API
+const config = require('../config');
 const { createModuleLogger } = require('./logger');
 const MODULE_NAME = 'SERVER:UTILS:AUTH-SIMPLE';
 const log = createModuleLogger(MODULE_NAME);
@@ -13,11 +14,11 @@ const authMiddleware = (req, res, next) => {
   log.info(`Vérification de l'authentification pour ${reqPath}`);
   
   try {
-    // Récupérer la clé API du fichier .env
-    const apiKey = process.env.API_KEY;
+    // Récupérer la clé API depuis la configuration centralisée
+    const apiKey = config.get('apiKey');
     
     if (!apiKey || apiKey.trim() === '') {
-      log.error('Erreur de configuration: API_KEY non définie dans .env');
+      log.error('Erreur de configuration: apiKey non définie');
       return res.status(500).json({ 
         error: 'Erreur de configuration serveur',
         detail: 'Clé API non configurée'
@@ -69,8 +70,8 @@ const checkApiKey = (req, res) => {
   log.info('Vérification de la clé API');
   
   try {
-    // Récupérer la clé API du fichier .env
-    const apiKey = process.env.API_KEY;
+    // Récupérer la clé API depuis la configuration centralisée
+    const apiKey = config.get('apiKey');
     
     // Vérifier l'en-tête API-Key ou Authorization
     const requestApiKey = req.headers['api-key'] || 
